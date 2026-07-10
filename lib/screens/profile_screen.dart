@@ -1,0 +1,396 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import '../auth_state.dart';
+import '../theme.dart';
+
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _profileFormKey = GlobalKey<FormState>();
+  final _passwordFormKey = GlobalKey<FormState>();
+  
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  
+  DateTime? _selectedExamDate;
+  bool _isSavingProfile = false;
+  bool _isUpdatingPassword = false;
+
+  @override
+  void initState() {
+    super.didChangeDependencies();
+    _prefillFields();
+  }
+
+  void _prefillFields() {
+    final auth = Provider.of<AuthState>(context, listen: false);
+    if (auth.profile != null) {
+      _nameController.text = auth.profile!.fullName ?? '';
+      _phoneController.text = auth.profile!.phone ?? '';
+      _selectedExamDate = auth.profile!.examDate;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _selectExamDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedExamDate ?? DateTime.now().add(const Duration(days: 30)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedExamDate = picked;
+      });
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_profileFormKey.currentState!.validate()) return;
+    
+    setState(() => _isSavingProfile = true);
+    
+    try {
+      final auth = Provider.of<AuthState>(context, listen: false);
+      await auth.updateProfile(
+        fullName: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        examDate: _selectedExamDate,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating profile: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingProfile = false);
+    }
+  }
+
+  Future<void> _changePassword() async {
+    if (!_passwordFormKey.currentState!.validate()) return;
+
+    setState(() => _isUpdatingPassword = true);
+
+    try {
+      final auth = Provider.of<AuthState>(context, listen: false);
+      await auth.updatePassword(_passwordController.text.trim());
+      _passwordController.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password updated successfully!'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdatingPassword = false);
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to delete your profile data and test history? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete')
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final auth = Provider.of<AuthState>(context, listen: false);
+        await auth.deleteAccount();
+        if (mounted) {
+          context.go('/auth');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting account: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = Provider.of<AuthState>(context);
+    final profile = auth.profile;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    int? daysToExam;
+    if (_selectedExamDate != null) {
+      final difference = _selectedExamDate!.difference(DateTime.now()).inDays;
+      daysToExam = difference >= 0 ? difference + 1 : 0;
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Your Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/'),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_outlined),
+            onPressed: () async {
+              await auth.signOut();
+              if (mounted) context.go('/auth');
+            },
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Countdown Card
+            if (daysToExam != null) ...[
+              Card(
+                color: AppTheme.primaryColor,
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Exam countdown',
+                        style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '$daysToExam days',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          fontFamily: 'Outfit',
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'until your IELTS exam on ${DateFormat.yMMMMd().format(_selectedExamDate!)}',
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+
+            // Profile info form card
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Form(
+                  key: _profileFormKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text('Edit Profile details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      const SizedBox(height: 20),
+                      
+                      // Full name input
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Full Name',
+                          prefixIcon: Icon(Icons.person_outline),
+                        ),
+                        validator: (val) => val == null || val.trim().isEmpty ? 'Full name is required' : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Phone input
+                      TextFormField(
+                        controller: _phoneController,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone (for payments)',
+                          prefixIcon: Icon(Icons.phone_outlined),
+                          hintText: '+2547...',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Exam Date Picker field
+                      InkWell(
+                        onTap: _selectExamDate,
+                        borderRadius: BorderRadius.circular(10),
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Exam Date',
+                            prefixIcon: Icon(Icons.calendar_today_outlined),
+                          ),
+                          child: Text(
+                            _selectedExamDate != null 
+                                ? DateFormat.yMMMMd().format(_selectedExamDate!) 
+                                : 'Select exam date...',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: _selectedExamDate != null 
+                                  ? (isDark ? Colors.white : Colors.black87) 
+                                  : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      ElevatedButton(
+                        onPressed: _isSavingProfile ? null : _saveProfile,
+                        child: _isSavingProfile
+                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('Save changes'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Change password card
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Form(
+                  key: _passwordFormKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text('Change password', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'New Password',
+                          prefixIcon: Icon(Icons.lock_outlined),
+                        ),
+                        validator: (val) {
+                          if (val == null || val.isEmpty) return 'Password is required';
+                          if (val.length < 6) return 'Password must be at least 6 characters';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 18),
+                      ElevatedButton(
+                        onPressed: _isUpdatingPassword ? null : _changePassword,
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, foregroundColor: isDark ? Colors.white : Colors.black87, side: BorderSide(color: isDark ? Colors.grey[700]! : const Color(0xFFD1D5DB)), shadowColor: Colors.transparent),
+                        child: _isUpdatingPassword
+                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Update password'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Payment status card
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Membership Access Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(
+                          profile?.isPaid == true ? Icons.check_circle_outline : Icons.lock_outline,
+                          color: profile?.isPaid == true ? Colors.green : Colors.grey,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            profile?.isPaid == true
+                                ? 'You have full unlocked access to all tests.'
+                                : 'You have access to free tests only. Payments are coming soon — an admin can grant early access.',
+                            style: const TextStyle(fontSize: 13, height: 1.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Danger zone card
+            Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: const BorderSide(color: Colors.red, width: 1),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Danger Zone', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.red)),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Deleting your account will remove all your statistics, profile details, and test attempts from our databases. This action is permanent and cannot be undone.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _deleteAccount,
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: const Text('Delete My Account'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+}
