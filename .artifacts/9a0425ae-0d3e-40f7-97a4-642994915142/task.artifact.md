@@ -1,0 +1,4 @@
+- `[ ]` Update `home_screen.dart` to fetch units for guest users
+- `[ ]` Update `skill_screen.dart` to sort units with free units first
+- `[ ]` Verify changes on Home Screen (Available Units count)
+- `[ ]` Verify changes on Skill Screen (Unit ordering)

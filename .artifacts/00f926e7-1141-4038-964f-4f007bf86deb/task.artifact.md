@@ -1,0 +1,3 @@
+- [ ] Add `logging` dependency to `pubspec.yaml`
+- [ ] Configure `logging` in `lib/main.dart`
+- [ ] Verify logging output in console

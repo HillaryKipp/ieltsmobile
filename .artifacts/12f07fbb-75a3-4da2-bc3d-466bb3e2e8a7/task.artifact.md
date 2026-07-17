@@ -1,0 +1,6 @@
+- [ ] Update `lib/routes.dart` to remove mandatory auth redirect
+- [ ] Update `lib/screens/auth_screen.dart` to add a "Continue as Guest" option
+- [ ] Update `lib/screens/home_screen.dart` to support guest welcome message
+- [ ] Update `lib/screens/profile_screen.dart` to show sign-in prompt for guests
+- [ ] Update `lib/screens/stats_screen.dart` to show sign-in prompt for guests
+- [ ] Verify guest navigation and test attempt flow
