@@ -133,87 +133,88 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   }
 }
 
-final GoRouter appRouter = GoRouter(
-  initialLocation: '/',
-  redirect: (BuildContext context, GoRouterState state) {
-    final auth = Provider.of<AuthState>(context, listen: false);
-    
-    if (auth.isLoading) return null; // Wait for initial auth state check
+GoRouter createRouter(AuthState authState) {
+  return GoRouter(
+    initialLocation: '/',
+    refreshListenable: authState,
+    redirect: (BuildContext context, GoRouterState state) {
+      if (authState.isLoading) return null;
 
-    final isLoggedIn = auth.user != null;
-    final onAuthPage = state.matchedLocation == '/auth';
-    final onResetPage = state.matchedLocation == '/reset-password';
+      final isLoggedIn = authState.user != null;
+      final onAuthPage = state.matchedLocation == '/auth';
+      final onResetPage = state.matchedLocation == '/reset-password';
 
-    if (!isLoggedIn && !onAuthPage && !onResetPage) {
-      return '/auth';
-    }
-
-    if (isLoggedIn) {
-      if (auth.resetPasswordRequired && !onResetPage) {
-        return '/reset-password';
+      if (isLoggedIn) {
+        if (authState.resetPasswordRequired && !onResetPage) {
+          return '/reset-password';
+        }
+        if (onAuthPage) {
+          return '/';
+        }
       }
-      if (onAuthPage) {
-        return '/';
-      }
-    }
 
-    return null;
-  },
-  routes: <RouteBase>[
-    GoRoute(
-      path: '/',
-      builder: (BuildContext context, GoRouterState state) {
-        return const MainNavigationShell(initialIndex: 0);
-      },
+      return null;
+    },
+    errorBuilder: (context, state) => Scaffold(
+      body: Center(child: Text('Page not found: ${state.uri}')),
     ),
-    GoRoute(
-      path: '/skills/:skill',
-      builder: (BuildContext context, GoRouterState state) {
-        final skill = state.pathParameters['skill'] ?? 'listening';
-        int index = 1;
-        if (skill == 'reading') index = 2;
-        if (skill == 'writing') index = 3;
-        if (skill == 'speaking') index = 4;
-        return MainNavigationShell(initialIndex: index);
-      },
-    ),
-    GoRoute(
-      path: '/stats',
-      builder: (BuildContext context, GoRouterState state) {
-        return const StatsScreen();
-      },
-    ),
-    GoRoute(
-      path: '/profile',
-      builder: (BuildContext context, GoRouterState state) {
-        return const ProfileScreen();
-      },
-    ),
-    GoRoute(
-      path: '/units/:unitId',
-      builder: (BuildContext context, GoRouterState state) {
-        final unitId = state.pathParameters['unitId']!;
-        return UnitOverviewScreen(unitId: unitId);
-      },
-    ),
-    GoRoute(
-      path: '/units/:unitId/practice',
-      builder: (BuildContext context, GoRouterState state) {
-        final unitId = state.pathParameters['unitId']!;
-        return PracticeScreen(unitId: unitId);
-      },
-    ),
-    GoRoute(
-      path: '/auth',
-      builder: (BuildContext context, GoRouterState state) {
-        return const AuthScreen();
-      },
-    ),
-    GoRoute(
-      path: '/reset-password',
-      builder: (BuildContext context, GoRouterState state) {
-        return const ResetPasswordScreen();
-      },
-    ),
-  ],
-);
+    routes: <RouteBase>[
+      // ... routes remain same ...
+      GoRoute(
+        path: '/',
+        builder: (BuildContext context, GoRouterState state) {
+          return const MainNavigationShell(initialIndex: 0);
+        },
+      ),
+      GoRoute(
+        path: '/skills/:skill',
+        builder: (BuildContext context, GoRouterState state) {
+          final skill = state.pathParameters['skill'] ?? 'listening';
+          int index = 1;
+          if (skill == 'reading') index = 2;
+          if (skill == 'writing') index = 3;
+          if (skill == 'speaking') index = 4;
+          return MainNavigationShell(initialIndex: index);
+        },
+      ),
+      GoRoute(
+        path: '/stats',
+        builder: (BuildContext context, GoRouterState state) {
+          return const StatsScreen();
+        },
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (BuildContext context, GoRouterState state) {
+          return const ProfileScreen();
+        },
+      ),
+      GoRoute(
+        path: '/units/:unitId',
+        builder: (BuildContext context, GoRouterState state) {
+          final unitId = state.pathParameters['unitId']!;
+          return UnitOverviewScreen(unitId: unitId);
+        },
+      ),
+      GoRoute(
+        path: '/units/:unitId/practice',
+        builder: (BuildContext context, GoRouterState state) {
+          final unitId = state.pathParameters['unitId']!;
+          return PracticeScreen(unitId: unitId);
+        },
+      ),
+      GoRoute(
+        path: '/auth',
+        builder: (BuildContext context, GoRouterState state) {
+          return const AuthScreen();
+        },
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (BuildContext context, GoRouterState state) {
+          return const ResetPasswordScreen();
+        },
+      ),
+    ],
+  );
+}

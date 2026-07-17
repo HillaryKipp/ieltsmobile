@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../auth_state.dart';
 import '../models.dart';
 import '../theme.dart';
@@ -312,6 +313,26 @@ class _PracticeScreenState extends State<PracticeScreen> {
     return '$minutes:$seconds';
   }
 
+  Widget _buildMediaUrlWidget(String? mediaUrl) {
+    if (mediaUrl == null || mediaUrl.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: CachedNetworkImage(
+          imageUrl: mediaUrl,
+          placeholder: (context, url) => Container(
+            height: 200,
+            color: Colors.grey[200],
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+          errorWidget: (context, url, error) => const SizedBox.shrink(),
+          fit: BoxFit.cover,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -486,7 +507,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Writing Prompt', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
+                    _buildMediaUrlWidget(q.mediaUrl),
                     Text(
                       q.prompt ?? '',
                       style: const TextStyle(fontSize: 14, height: 1.4),
@@ -824,20 +846,26 @@ class _PracticeScreenState extends State<PracticeScreen> {
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 12),
                                     Padding(
                                       padding: const EdgeInsets.only(left: 16.0),
-                                      child: _buildQuestionInputWidget(
-                                        question: q,
-                                        value: _answers[q.id],
-                                        onChange: (val) {
-                                          if (_submitted) return;
-                                          setState(() {
-                                            _answers[q.id] = val;
-                                          });
-                                        },
-                                        isDark: isDark,
-                                        cfg: cfg,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          _buildMediaUrlWidget(q.mediaUrl),
+                                          _buildQuestionInputWidget(
+                                            question: q,
+                                            value: _answers[q.id],
+                                            onChange: (val) {
+                                              if (_submitted) return;
+                                              setState(() {
+                                                _answers[q.id] = val;
+                                              });
+                                            },
+                                            isDark: isDark,
+                                            cfg: cfg,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     
@@ -1189,13 +1217,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
           return Column(
             children: [
-              if (question.mediaUrl != null && question.mediaUrl!.isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(question.mediaUrl!, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image)),
-                ),
-                const SizedBox(height: 12),
-              ],
               ...gaps.map((gap) {
                 final selectedVal = currentMap[gap.toString()] ?? '';
                 

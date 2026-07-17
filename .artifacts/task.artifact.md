@@ -1,6 +1,6 @@
-- [ ] Update dependencies in `pubspec.yaml`
-- [ ] Update `lib/config.dart` with `webOrigin`
-- [ ] Add M-Pesa payment logic to `lib/auth_state.dart`
-- [ ] Update `lib/screens/profile_screen.dart` with Upgrade/Payment UI
-- [ ] Update `lib/screens/practice_screen.dart` to support `media_url` and use `CachedNetworkImage`
-- [ ] Verify changes
+- [x] Update dependencies in `pubspec.yaml`
+- [x] Update `lib/config.dart` with `webOrigin`
+- [x] Add M-Pesa payment logic to `lib/auth_state.dart`
+- [x] Update `lib/screens/profile_screen.dart` with Upgrade/Payment UI
+- [x] Update `lib/screens/practice_screen.dart` to support `media_url` and use `CachedNetworkImage`
+- [x] Verify changes

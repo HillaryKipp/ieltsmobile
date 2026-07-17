@@ -15,9 +15,9 @@ class SkillScreen extends StatefulWidget {
   State<SkillScreen> createState() => _SkillScreenState();
 }
 
-class _SkillScreenState extends State<SkillScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _SkillScreenState extends State<SkillScreen> {
   bool _isLoading = true;
+  bool _hasLoadedOnce = false;
   List<Unit> _units = [];
   Map<String, double> _completedScores = {};
   String? _errorMessage;
@@ -25,7 +25,6 @@ class _SkillScreenState extends State<SkillScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadSkillData();
   }
 
@@ -39,8 +38,17 @@ class _SkillScreenState extends State<SkillScreen> with SingleTickerProviderStat
 
   @override
   void dispose() {
-    _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = Provider.of<AuthState>(context);
+    // If auth finished loading and we haven't loaded data yet, load it.
+    if (!auth.isLoading && auth.user != null && !_hasLoadedOnce && !_isLoading) {
+      _loadSkillData();
+    }
   }
 
   Future<void> _loadSkillData() async {
@@ -55,7 +63,7 @@ class _SkillScreenState extends State<SkillScreen> with SingleTickerProviderStat
       final uid = auth.user?.id;
 
       final results = await Future.wait([
-        supabase.from('units').select('*').eq('skill', widget.skill).order('order_index'),
+        supabase.from('units').select('*').eq('skill', widget.skill).order('is_free', ascending: false).order('order_index'),
         uid != null 
             ? supabase.from('user_attempts').select('unit_id, band_score').eq('user_id', uid)
             : Future.value([]),
@@ -78,6 +86,7 @@ class _SkillScreenState extends State<SkillScreen> with SingleTickerProviderStat
           _units = loadedUnits;
           _completedScores = scores;
           _isLoading = false;
+          _hasLoadedOnce = true;
         });
       }
     } catch (e) {
@@ -85,6 +94,7 @@ class _SkillScreenState extends State<SkillScreen> with SingleTickerProviderStat
         setState(() {
           _errorMessage = e.toString();
           _isLoading = false;
+          _hasLoadedOnce = true;
         });
       }
     }
@@ -97,7 +107,7 @@ class _SkillScreenState extends State<SkillScreen> with SingleTickerProviderStat
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     // Check if everything is unlocked
-    final isUnlocked = auth.isAdmin || (auth.profile?.isPaid ?? false);
+    final isUnlocked = auth.user != null && (auth.isAdmin || (auth.profile?.isPaid ?? false));
 
     // Filter units
     final allUnits = _units;
@@ -140,214 +150,205 @@ class _SkillScreenState extends State<SkillScreen> with SingleTickerProviderStat
                     ],
                   ),
                 )
-              : NestedScrollView(
-                  headerSliverBuilder: (context, innerBoxIsScrolled) {
-                    return [
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-                          child: Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: cfg.soft,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: cfg.primary.withOpacity(0.1)),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        cfg.label,
-                                        style: TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w800,
-                                          color: cfg.foreground,
-                                          fontFamily: 'Outfit',
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        cfg.tagline,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: cfg.foreground.withOpacity(0.85),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Icon(cfg.icon, color: cfg.primary, size: 48),
-                              ],
-                            ),
+              : CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: cfg.soft,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: cfg.primary.withOpacity(0.1)),
                           ),
-                        ),
-                      ),
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: _SliverAppBarDelegate(
-                          TabBar(
-                            controller: _tabController,
-                            indicatorColor: cfg.primary,
-                            labelColor: cfg.primary,
-                            unselectedLabelColor: isDark ? Colors.grey[400] : Colors.grey[600],
-                            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-                            tabs: const [
-                              Tab(text: 'All Tests'),
-                              Tab(text: 'Mock Tests'),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      cfg.label,
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w800,
+                                        color: cfg.foreground,
+                                        fontFamily: 'Outfit',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      cfg.tagline,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: cfg.foreground.withOpacity(0.85),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Icon(cfg.icon, color: cfg.primary, size: 48),
                             ],
                           ),
-                          isDark ? const Color(0xFF121214) : const Color(0xFFF9F9F8),
                         ),
                       ),
-                    ];
-                  },
-                  body: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildTestList(allUnits, isUnlocked, cfg, isDark),
-                      _buildTestList(mockUnits, isUnlocked, cfg, isDark, isMockTab: true),
-                    ],
-                  ),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      sliver: SliverToBoxAdapter(
+                        child: Text(
+                          'Available Practice Units',
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.grey[800],
+                          ),
+                        ),
+                      ),
+                    ),
+                    _buildSliverTestList(allUnits, isUnlocked, cfg, isDark),
+                  ],
                 ),
     );
   }
 
-  Widget _buildTestList(List<Unit> units, bool isUnlocked, SkillTheme cfg, bool isDark, {bool isMockTab = false}) {
+  Widget _buildSliverTestList(List<Unit> units, bool isUnlocked, SkillTheme cfg, bool isDark) {
     if (units.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(cfg.icon, size: 48, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text(
-                isMockTab ? 'No Mock Exams Available' : 'No tests found in this category.',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isMockTab ? 'Mock tests will be released soon. Standard practice units are available.' : 'Check back later for updates.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-              ),
-            ],
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(cfg.icon, size: 48, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'No tests found in this category.',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Check back later for updates.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      itemCount: units.length,
-      itemBuilder: (context, index) {
-        final unit = units[index];
-        final isAccessible = unit.isFree || isUnlocked;
-        final hasScore = _completedScores.containsKey(unit.id);
-        final score = _completedScores[unit.id];
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final unit = units[index];
+            final isAccessible = unit.isFree || isUnlocked;
+            final hasScore = _completedScores.containsKey(unit.id);
+            final score = _completedScores[unit.id];
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB),
-            ),
-          ),
-          child: Row(
-            children: [
-              // Index Circle
-              Container(
-                height: 38,
-                width: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: cfg.soft,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '${index + 1}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: cfg.foreground,
-                    fontSize: 14,
-                  ),
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB),
                 ),
               ),
-              const SizedBox(width: 14),
+              child: Row(
+                children: [
+                  // Index Circle
+                  Container(
+                    height: 38,
+                    width: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: cfg.soft,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${index + 1}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: cfg.foreground,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
 
-              // Title and Description
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                  // Title and Description
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Flexible(
-                          child: Text(
-                            unit.title,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                        ),
-                        if (unit.isFree) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.grey[800] : Colors.grey[200],
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'Free',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.grey[300] : Colors.grey[600],
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                unit.title,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                             ),
+                            if (unit.isFree) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.grey[800] : Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Free',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.grey[300] : Colors.grey[600],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (unit.description != null && unit.description!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            unit.description!,
+                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ],
                     ),
-                    if (unit.description != null && unit.description!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        unit.description!,
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // Completed Score Badge (if applicable)
-              if (hasScore && score != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: cfg.soft,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: cfg.primary.withOpacity(0.2)),
                   ),
-                  child: Text(
-                    score.toStringAsFixed(1),
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.bold,
-                      color: cfg.foreground,
-                      fontSize: 13,
+                  const SizedBox(width: 12),
+
+                  // Completed Score Badge (if applicable)
+                  if (hasScore && score != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: cfg.soft,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: cfg.primary.withOpacity(0.2)),
+                      ),
+                      child: Text(
+                        score.toStringAsFixed(1),
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          color: cfg.foreground,
+                          fontSize: 13,
                     ),
                   ),
                 ),
@@ -412,31 +413,9 @@ class _SkillScreenState extends State<SkillScreen> with SingleTickerProviderStat
           ),
         );
       },
-    );
-  }
+      childCount: units.length,
+    ),
+  ),
+);
 }
-
-class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar _tabBar;
-  final Color _bgColor;
-
-  _SliverAppBarDelegate(this._tabBar, this._bgColor);
-
-  @override
-  double get minExtent => _tabBar.preferredSize.height;
-  @override
-  double get maxExtent => _tabBar.preferredSize.height;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: _bgColor,
-      child: _tabBar,
-    );
-  }
-
-  @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return false;
-  }
 }

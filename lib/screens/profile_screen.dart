@@ -23,11 +23,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
   DateTime? _selectedExamDate;
   bool _isSavingProfile = false;
   bool _isUpdatingPassword = false;
+  bool _isInitiatingPayment = false;
+  double? _price;
+  bool _isLoadingPrice = true;
 
   @override
   void initState() {
     super.didChangeDependencies();
     _prefillFields();
+    _fetchPrice();
+  }
+
+  Future<void> _fetchPrice() async {
+    try {
+      final res = await supabase.rpc('get_public_price');
+      if (mounted) {
+        setState(() {
+          _price = (res as num?)?.toDouble();
+          _isLoadingPrice = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching price: $e');
+      if (mounted) {
+        setState(() => _isLoadingPrice = false);
+      }
+    }
   }
 
   void _prefillFields() {
@@ -148,6 +169,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _initiatePayment() async {
+    final phone = _phoneController.text.trim();
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a phone number first.'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    setState(() => _isInitiatingPayment = true);
+    try {
+      final auth = Provider.of<AuthState>(context, listen: false);
+      await auth.initiateMpesaPayment(phone);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('STK Push sent! Please check your phone.'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Payment initiation failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isInitiatingPayment = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthState>(context);
@@ -168,7 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/'),
         ),
-        actions: [
+        actions: auth.user != null ? [
           IconButton(
             icon: const Icon(Icons.logout_outlined),
             onPressed: () async {
@@ -176,15 +226,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (mounted) context.go('/auth');
             },
           ),
-        ],
+        ] : null,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Countdown Card
-            if (daysToExam != null) ...[
+      body: auth.user == null 
+          ? _buildGuestView(isDark)
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Countdown Card
+                  if (daysToExam != null) ...[
               Card(
                 color: AppTheme.primaryColor,
                 child: Padding(
@@ -328,15 +380,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Payment status card
+            // Membership status and Upgrade card
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(18.0),
+                padding: const EdgeInsets.all(20.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Membership Access Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    const SizedBox(height: 12),
+                    const Text('Membership Access Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
                         Icon(
@@ -348,12 +400,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Text(
                             profile?.isPaid == true
                                 ? 'You have full unlocked access to all tests.'
-                                : 'You have access to free tests only. Payments are coming soon — an admin can grant early access.',
-                            style: const TextStyle(fontSize: 13, height: 1.4),
+                                : 'You have access to free tests only.',
+                            style: const TextStyle(fontSize: 14),
                           ),
                         ),
                       ],
                     ),
+                    if (profile?.isPaid != true) ...[
+                      const Divider(height: 32),
+                      const Text(
+                        'Unlock all practice units and detailed analytics with a one-time premium membership.',
+                        style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.4),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_isLoadingPrice)
+                        const Center(child: CircularProgressIndicator())
+                      else if (_price != null) ...[
+                        Text(
+                          'KSH ${_price!.toStringAsFixed(0)} One-time Payment',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _isInitiatingPayment ? null : _initiatePayment,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[600],
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: _isInitiatingPayment
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : const Text('Upgrade via M-Pesa STK Push', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Ensure your phone number is correct above.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ],
                   ],
                 ),
               ),
@@ -390,6 +480,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 40),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildGuestView(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.all(32.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Icon(Icons.account_circle_outlined, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 24),
+          const Text(
+            'Personalize Your Experience',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Sign in to track your progress, save your test history, and unlock premium features.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: () => context.go('/auth'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Sign In or Create Account', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

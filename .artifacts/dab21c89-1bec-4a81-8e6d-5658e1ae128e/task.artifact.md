@@ -1,7 +1,7 @@
-- [ ] Fix Layout Overflows in `HomeScreen`
-    - [ ] Update `LayoutBuilder` in `HomeScreen` to use valid `flex` values and remove fixed heights
-- [ ] Remove "Mock Tests" and Update "All Tests" Label
-    - [ ] Update `_SkillSummary` class
-    - [ ] Update skill data calculation in `_HomeScreenState`
-    - [ ] Update `_buildSkillDetailCard` to remove "Mock Tests" row and rename "All Tests"
-- [ ] Verify changes
+- [x] Fix Layout Overflows in `HomeScreen`
+    - [x] Update `LayoutBuilder` in `HomeScreen` to use valid `flex` values and remove fixed heights
+- [x] Remove "Mock Tests" and Update "All Tests" Label
+    - [x] Update `_SkillSummary` class
+    - [x] Update skill data calculation in `_HomeScreenState`
+    - [x] Update `_buildSkillDetailCard` to remove "Mock Tests" row and rename "All Tests"
+- [x] Verify changes

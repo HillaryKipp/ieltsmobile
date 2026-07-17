@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../auth_state.dart';
 import '../theme.dart';
@@ -351,6 +352,18 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () => context.go('/'),
+                  child: Text(
+                    'Continue as Guest',
+                    style: TextStyle(
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      fontSize: 13,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
                 ),
               ],
             ),

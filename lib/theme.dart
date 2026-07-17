@@ -100,9 +100,10 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: lightCard,
         elevation: 0,
+        margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14.0),
-          side: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
+          borderRadius: BorderRadius.circular(16.0),
+          side: const BorderSide(color: Color(0xFFF3F4F6), width: 1.5),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(

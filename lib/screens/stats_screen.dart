@@ -18,6 +18,7 @@ class StatsScreen extends StatefulWidget {
 
 class _StatsScreenState extends State<StatsScreen> {
   bool _isLoading = true;
+  bool _hasLoadedOnce = false;
   List<UserAttempt> _attempts = [];
   List<ScoreHistory> _history = [];
   int _totalUnits = 0;
@@ -29,7 +30,18 @@ class _StatsScreenState extends State<StatsScreen> {
     _loadStatsData();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = Provider.of<AuthState>(context);
+    // If auth finished loading and we haven't loaded data yet, load it.
+    if (!auth.isLoading && auth.user != null && !_hasLoadedOnce && !_isLoading) {
+      _loadStatsData();
+    }
+  }
+
   Future<void> _loadStatsData() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -37,7 +49,13 @@ class _StatsScreenState extends State<StatsScreen> {
 
     try {
       final auth = Provider.of<AuthState>(context, listen: false);
-      if (auth.user == null) return;
+      if (auth.user == null) {
+        setState(() {
+          _isLoading = false;
+          _hasLoadedOnce = true;
+        });
+        return;
+      }
       final uid = auth.user!.id;
 
       final results = await Future.wait([
@@ -56,6 +74,7 @@ class _StatsScreenState extends State<StatsScreen> {
           _history = historyData.map((e) => ScoreHistory.fromJson(e as Map<String, dynamic>)).toList();
           _totalUnits = unitsData.length;
           _isLoading = false;
+          _hasLoadedOnce = true;
         });
       }
     } catch (e) {
@@ -63,6 +82,7 @@ class _StatsScreenState extends State<StatsScreen> {
         setState(() {
           _errorMessage = e.toString();
           _isLoading = false;
+          _hasLoadedOnce = true;
         });
       }
     }
@@ -70,12 +90,27 @@ class _StatsScreenState extends State<StatsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = Provider.of<AuthState>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Statistics', style: TextStyle(fontWeight: FontWeight.bold))),
         body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (auth.user == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Your Statistics', style: TextStyle(fontWeight: FontWeight.bold)),
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.go('/'),
+          ),
+        ),
+        body: _buildGuestView(isDark),
       );
     }
 
@@ -474,6 +509,40 @@ class _StatsScreenState extends State<StatsScreen> {
               fontWeight: FontWeight.bold,
               color: isWeak ? Colors.red : Colors.green,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuestView(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.all(32.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Icon(Icons.bar_chart_outlined, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 24),
+          const Text(
+            'Track Your Progress',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Sign in to see your detailed performance analytics and band score trends over time.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: () => context.go('/auth'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Sign In to View Stats', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

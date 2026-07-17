@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:app_links/app_links.dart';
+import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'config.dart';
 
@@ -31,15 +33,20 @@ class AuthState extends ChangeNotifier {
   void _init() {
     // Listen to Supabase auth changes
     _authSubscription = supabase.auth.onAuthStateChange.listen((data) async {
-      _user = data.session?.user ?? supabase.auth.currentUser;
-      if (_user != null) {
-        await _fetchProfileAndRole();
-      } else {
-        _profile = null;
-        _isAdmin = false;
+      try {
+        _user = data.session?.user ?? supabase.auth.currentUser;
+        if (_user != null) {
+          await _fetchProfileAndRole();
+        } else {
+          _profile = null;
+          _isAdmin = false;
+        }
+      } catch (e) {
+        debugPrint('Auth listener error: $e');
+      } finally {
+        _isLoading = false;
+        notifyListeners();
       }
-      _isLoading = false;
-      notifyListeners();
     });
 
     // Listen to deep links
@@ -153,6 +160,24 @@ class AuthState extends ChangeNotifier {
   Future<void> updatePassword(String newPassword) async {
     await supabase.auth.updateUser(UserAttributes(password: newPassword));
     clearResetPasswordRequired();
+  }
+
+  Future<void> initiateMpesaPayment(String phone) async {
+    final session = supabase.auth.currentSession;
+    if (session == null) throw Exception('No active session');
+
+    final response = await http.post(
+      Uri.parse('${Env.webOrigin}/api/public/mpesa/initiate'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.accessToken}',
+      },
+      body: jsonEncode({'phone': phone}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to initiate payment: ${response.body}');
+    }
   }
 
   void clearResetPasswordRequired() {

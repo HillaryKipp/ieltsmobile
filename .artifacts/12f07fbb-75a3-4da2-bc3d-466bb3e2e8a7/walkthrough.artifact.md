@@ -1,30 +1,31 @@
-# Walkthrough - Guest Browsing Enabled
+# Walkthrough - Home Screen Redesign
 
-I have updated the app to allow users to browse features and take practice tests without an account.
+I have completely redesigned the Home screen to match the professional dashboard design from the web reference.
 
-## Changes Made
+## Key UI Improvements
 
-### 1. Routing Updates
-- Removed the mandatory authentication redirect in `lib/routes.dart`. The app now defaults to the Home screen for all users.
+### 1. Dashboard Overview
+- **Redesigned Overall Band Card**: A vibrant red card that features a large band score display and a circular progress indicator to show the user's current progress percentage.
+- **Your Progress Summary**: A clean, white card providing a quick glance at the average band scores for all four skills (Listening, Reading, Writing, Speaking).
 
-### 2. Authentication Screen
-- Added a "Continue as Guest" button to `lib/screens/auth_screen.dart`, allowing users to skip the login process if they navigate there.
+### 2. Skill Detail Cards
+- Replaced the simple horizontal list with a **detailed grid of 4 cards**.
+- Each card now displays:
+    - **Skill Branding**: Skill name, tagline, and color-coded icon.
+    - **Latest Test**: Shows the name, date, and score of the most recent attempt for that specific skill.
+    - **Quick Stats**: A breakdown of total tests available, mock tests available, and the user's average score for that skill.
+    - **Action Button**: A dedicated "Start Practicing" button that takes the user directly to the skill's unit list.
 
-### 3. Dynamic Guest Content
-- **Home Screen**: Updated the welcome header to show "Welcome to IELTSPrep!" for guests and added a call-to-action in the Band Score card to encourage signing in.
-- **Profile Screen**: Replaced the user profile details with a dedicated guest view that includes a "Sign In" call-to-action.
-- **Stats Screen**: Added a guest view for the statistics page, explaining that an account is required to track long-term progress.
+### 3. Recent Tests
+- Restyled the recent attempts list to use **spacious, bordered cards** with clear typography and skill icons.
 
-### 4. Skill & Practice Logic
-- Updated `lib/screens/skill_screen.dart` to ensure premium units remain locked for guest users while keeping free units accessible.
+### 4. Layout & Theme
+- **Responsive Layout**: The Home screen now adapts its layout for wider screens, moving from a single column to a 2 or 4 column grid for the skill cards.
+- **Modern Styling**: Updated the global theme to use softer shadows, larger border radii (16px+), and a cleaner color palette that aligns with the "web dashboard" aesthetic.
 
-## Verification Results
+## Data Binding & Logic
+- The **Average Score** and **Latest Test** info are dynamically calculated based on the user's actual attempt history from the database.
+- **Mock Tests** are identified by checking unit titles for the keyword "Mock".
 
-- [x] App starts on Home screen instead of Auth screen.
-- [x] Home screen displays generic welcome message for guests.
-- [x] Profile and Stats screens show "Sign In" prompts.
-- [x] Navigation to Skill screens works as expected.
-- [x] Free units can be started and completed as a guest.
-
-> [!NOTE]
-> Guest users can complete tests and see their scores, but these results are not persisted to the database. They will see a prompt to sign in if they wish to save their progress.
+> [!TIP]
+> The app now feels much more professional and provides users with a clearer view of their preparation status across all IELTS categories.
