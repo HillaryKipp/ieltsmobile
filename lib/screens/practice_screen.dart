@@ -148,7 +148,16 @@ class _PracticeScreenState extends State<PracticeScreen> {
         // Initialize Audio player if it's listening skill
         if (loadedUnit.skill == 'listening' && flattened.isNotEmpty && flattened[0].audioUrl != null) {
           _audioPlayer = AudioPlayer();
-          _audioPlayer!.setUrl(flattened[0].audioUrl!);
+          try {
+            await _audioPlayer!.setUrl(flattened[0].audioUrl!);
+          } catch (e) {
+            debugPrint('Error loading audio: $e');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Failed to load audio: ${e.toString().split(':').last.trim()}')),
+              );
+            }
+          }
         }
 
         // Start countdown timer

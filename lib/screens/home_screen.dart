@@ -292,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   mainAxisSpacing: 20,
                   crossAxisSpacing: 20,
-                  childAspectRatio: isWide ? 0.72 : (isMedium ? 0.85 : 1.1),
+                  childAspectRatio: isWide ? 0.72 : (isMedium ? 0.85 : 0.95),
                   children: ['listening', 'reading', 'writing', 'speaking'].map((s) => _buildSkillDetailCard(s, skillData[s]!, isDark)).toList(),
                 );
               }),
