@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import 'auth_state.dart';
 import 'screens/auth_screen.dart';
 import 'screens/reset_password_screen.dart';
@@ -10,6 +9,7 @@ import 'screens/unit_overview_screen.dart';
 import 'screens/practice_screen.dart';
 import 'screens/stats_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/admin_screen.dart';
 import 'theme.dart';
 
 class MainNavigationShell extends StatefulWidget {
@@ -143,6 +143,11 @@ GoRouter createRouter(AuthState authState) {
       final isLoggedIn = authState.user != null;
       final onAuthPage = state.matchedLocation == '/auth';
       final onResetPage = state.matchedLocation == '/reset-password';
+      final onAdminPage = state.matchedLocation.startsWith('/admin');
+
+      if (onAdminPage && !authState.isAdmin) {
+        return '/';
+      }
 
       if (isLoggedIn) {
         if (authState.resetPasswordRequired && !onResetPage) {
@@ -159,11 +164,17 @@ GoRouter createRouter(AuthState authState) {
       body: Center(child: Text('Page not found: ${state.uri}')),
     ),
     routes: <RouteBase>[
-      // ... routes remain same ...
       GoRoute(
         path: '/',
         builder: (BuildContext context, GoRouterState state) {
           return const MainNavigationShell(initialIndex: 0);
+        },
+      ),
+      GoRoute(
+        path: '/admin',
+        builder: (BuildContext context, GoRouterState state) {
+          final unitId = state.uri.queryParameters['unitId'];
+          return AdminScreen(initialUnitId: unitId);
         },
       ),
       GoRoute(

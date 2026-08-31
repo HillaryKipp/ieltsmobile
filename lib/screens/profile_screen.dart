@@ -235,6 +235,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Admin Panel Card for Admins
+                  if (auth.isAdmin) ...[
+                    Card(
+                      color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(color: AppTheme.primaryColor, width: 1.5),
+                      ),
+                      child: InkWell(
+                        onTap: () => context.go('/admin'),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(Icons.admin_panel_settings_outlined, color: AppTheme.primaryColor, size: 28),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Admin Control Panel', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    const SizedBox(height: 4),
+                                    Text('Manage units, questions, and app settings', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                                  ],
+                                ),
+                              ),
+                              Icon(Icons.chevron_right, color: AppTheme.primaryColor),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
                   // Countdown Card
                   if (daysToExam != null) ...[
               Card(

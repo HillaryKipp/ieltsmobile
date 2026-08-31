@@ -1265,7 +1265,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
                             final text = opt['text']?.toString() ?? '';
                             return DropdownMenuItem<String>(
                               value: id,
-                              child: Text('$id. $text', style: const TextStyle(fontSize: 13)),
+                              child: Text(
+                                '$id. $text',
+                                style: const TextStyle(fontSize: 13),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
                             );
                           }).toList(),
                         ),
