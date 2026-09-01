@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../auth_state.dart';
 import '../models.dart';
 import '../theme.dart';
+import '../utils/error_utils.dart';
+import '../widgets/error_view.dart';
 
 class UnitOverviewScreen extends StatefulWidget {
   final String unitId;
@@ -46,7 +48,7 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = ErrorUtils.getFriendlyMessage(e);
           _isLoading = false;
         });
       }
@@ -67,22 +69,10 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
     if (_errorMessage != null || _unit == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Unit Overview')),
-        body: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: AppTheme.primaryColor),
-              const SizedBox(height: 16),
-              const Text('Failed to load unit details', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _loadUnitDetails,
-                child: const Text('Try Again'),
-              ),
-            ],
-          ),
+        body: ErrorView(
+          error: _errorMessage,
+          title: 'Failed to Load Unit Details',
+          onRetry: _loadUnitDetails,
         ),
       );
     }

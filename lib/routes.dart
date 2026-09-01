@@ -10,7 +10,9 @@ import 'screens/practice_screen.dart';
 import 'screens/stats_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/admin_screen.dart';
+import 'screens/privacy_policy_screen.dart';
 import 'theme.dart';
+import 'widgets/error_view.dart';
 
 class MainNavigationShell extends StatefulWidget {
   final int initialIndex;
@@ -161,7 +163,14 @@ GoRouter createRouter(AuthState authState) {
       return null;
     },
     errorBuilder: (context, state) => Scaffold(
-      body: Center(child: Text('Page not found: ${state.uri}')),
+      appBar: AppBar(title: const Text('Page Not Found')),
+      body: ErrorView(
+        title: 'Page Not Found',
+        message: 'The page "${state.uri}" could not be found.',
+        retryLabel: 'Return Home',
+        icon: Icons.find_in_page_outlined,
+        onRetry: () => context.go('/'),
+      ),
     ),
     routes: <RouteBase>[
       GoRoute(
@@ -224,6 +233,12 @@ GoRouter createRouter(AuthState authState) {
         path: '/reset-password',
         builder: (BuildContext context, GoRouterState state) {
           return const ResetPasswordScreen();
+        },
+      ),
+      GoRoute(
+        path: '/privacy-policy',
+        builder: (BuildContext context, GoRouterState state) {
+          return const PrivacyPolicyScreen();
         },
       ),
     ],

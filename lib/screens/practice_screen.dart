@@ -9,6 +9,8 @@ import '../auth_state.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../grading.dart';
+import '../utils/error_utils.dart';
+import '../widgets/error_view.dart';
 
 class PracticeScreen extends StatefulWidget {
   final String unitId;
@@ -29,6 +31,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   bool _submitted = false;
   bool _saving = false;
   String? _errorMessage;
+  String? _submitError;
   int _seed = 0;
 
   // Audio & Timer
@@ -36,6 +39,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
   Timer? _countdownTimer;
   int _secondsRemaining = 45 * 60; // Default 45 mins
   bool _timerExpired = false;
+  String? _audioError;
+  bool _isLoadingAudio = false;
 
   // Self assessment variables
   String? _selfRating;
@@ -147,17 +152,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
         // Initialize Audio player if it's listening skill
         if (loadedUnit.skill == 'listening' && flattened.isNotEmpty && flattened[0].audioUrl != null) {
-          _audioPlayer = AudioPlayer();
-          try {
-            await _audioPlayer!.setUrl(flattened[0].audioUrl!);
-          } catch (e) {
-            debugPrint('Error loading audio: $e');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Failed to load audio: ${e.toString().split(':').last.trim()}')),
-              );
-            }
-          }
+          _loadAudio(flattened[0].audioUrl!);
         }
 
         // Start countdown timer
@@ -166,8 +161,35 @@ class _PracticeScreenState extends State<PracticeScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = ErrorUtils.getFriendlyMessage(e);
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadAudio(String url) async {
+    if (url.isEmpty) return;
+    setState(() {
+      _isLoadingAudio = true;
+      _audioError = null;
+    });
+
+    _audioPlayer ??= AudioPlayer();
+    try {
+      await _audioPlayer!.setUrl(url);
+      if (mounted) {
+        setState(() {
+          _isLoadingAudio = false;
+          _audioError = null;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading audio: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingAudio = false;
+          _audioError = ErrorUtils.getFriendlyMessage(e);
         });
       }
     }
@@ -218,15 +240,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
         'completed_at': DateTime.now().toIso8601String(),
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Progress saved successfully!'), backgroundColor: Colors.green),
-        );
+        ErrorUtils.showSuccessSnackBar(context, 'Progress saved successfully!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save progress: $e'), backgroundColor: Colors.red),
-        );
+        ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to save progress');
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -240,8 +258,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
     final band = bandFromPercent(graded.pct);
 
     setState(() {
-      _submitted = true;
       _saving = true;
+      _submitError = null;
     });
 
     try {
@@ -268,15 +286,18 @@ class _PracticeScreenState extends State<PracticeScreen> {
       }
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Test submitted! Estimated Band Score: $band'), backgroundColor: Colors.green),
-        );
+        setState(() {
+          _submitted = true;
+          _submitError = null;
+        });
+        ErrorUtils.showSuccessSnackBar(context, 'Test submitted! Estimated Band Score: $band');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit attempts: $e'), backgroundColor: Colors.red),
-        );
+        setState(() {
+          _submitError = ErrorUtils.getFriendlyMessage(e);
+        });
+        ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to submit test');
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -303,15 +324,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
         await auth.refreshProfile();
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Rating saved! Estimated Band Score: $band'), backgroundColor: Colors.green),
-        );
+        ErrorUtils.showSuccessSnackBar(context, 'Rating saved! Estimated Band Score: $band');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save rating: $e'), backgroundColor: Colors.red),
-        );
+        ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to save rating');
       }
     }
   }
@@ -335,7 +352,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
             color: Colors.grey[200],
             child: const Center(child: CircularProgressIndicator()),
           ),
-          errorWidget: (context, url, error) => const SizedBox.shrink(),
+          errorWidget: (context, url, error) => MediaErrorPlaceholder(
+            onRetry: () => setState(() {}),
+          ),
           fit: BoxFit.cover,
         ),
       ),
@@ -351,18 +370,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
     if (_errorMessage != null || _unit == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Practice')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('An error occurred loading questions.'),
-                const SizedBox(height: 16),
-                ElevatedButton(onPressed: _loadPracticeData, child: const Text('Retry')),
-              ],
-            ),
-          ),
+        body: ErrorView(
+          error: _errorMessage,
+          title: 'Failed to Load Practice Test',
+          onRetry: _loadPracticeData,
         ),
       );
     }
@@ -575,10 +586,17 @@ class _PracticeScreenState extends State<PracticeScreen> {
             const SizedBox(height: 24),
 
             if (!_submitted) ...[
+              if (_submitError != null)
+                InlineErrorBanner(
+                  message: _submitError,
+                  onDismiss: () => setState(() => _submitError = null),
+                ),
               ElevatedButton(
                 onPressed: _saving ? null : _submitTest,
                 style: ElevatedButton.styleFrom(backgroundColor: cfg.primary),
-                child: const Text('Submit Writing Test'),
+                child: _saving
+                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Submit Writing Test'),
               ),
             ] else ...[
               // Model answer and checklist
@@ -717,7 +735,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   const SizedBox(height: 16),
 
                   // Listening Audio Player
-                  if (unit.skill == 'listening' && _audioPlayer != null) ...[
+                  if (unit.skill == 'listening') ...[
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(14.0),
@@ -725,38 +743,80 @@ class _PracticeScreenState extends State<PracticeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text('Listening Test Audio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            const SizedBox(height: 6),
-                            StreamBuilder<PlayerState>(
-                              stream: _audioPlayer!.playerStateStream,
-                              builder: (context, snapshot) {
-                                final playerState = snapshot.data;
-                                final processingState = playerState?.processingState;
-                                final playing = playerState?.playing;
-                                
-                                if (processingState == ProcessingState.loading || processingState == ProcessingState.buffering) {
-                                  return const Center(child: SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2)));
-                                } else if (playing != true) {
-                                  return ElevatedButton.icon(
-                                    onPressed: _audioPlayer!.play,
-                                    icon: const Icon(Icons.play_arrow),
-                                    label: const Text('Play Audio (Single Play)'),
-                                    style: ElevatedButton.styleFrom(backgroundColor: cfg.primary, padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16)),
-                                  );
-                                } else if (processingState != ProcessingState.completed) {
-                                  return Row(
+                            const SizedBox(height: 8),
+                            if (_isLoadingAudio)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8.0),
+                                child: Row(
+                                  children: [
+                                    SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                                    SizedBox(width: 12),
+                                    Text('Loading audio track...', style: TextStyle(fontSize: 12)),
+                                  ],
+                                ),
+                              )
+                            else if (_audioError != null)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
                                     children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.pause),
-                                        onPressed: _audioPlayer!.pause,
+                                      const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Failed to load audio: $_audioError',
+                                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                                        ),
                                       ),
-                                      const Expanded(child: Text('Playing Section Audio...', style: TextStyle(fontSize: 12))),
                                     ],
-                                  );
-                                } else {
-                                  return const Text('Audio Finished.', style: TextStyle(color: Colors.grey, fontSize: 12));
-                                }
-                              },
-                            ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  if (_flatQuestions.isNotEmpty && _flatQuestions[0].audioUrl != null)
+                                    OutlinedButton.icon(
+                                      onPressed: () => _loadAudio(_flatQuestions[0].audioUrl!),
+                                      icon: const Icon(Icons.refresh, size: 16),
+                                      label: const Text('Retry Audio', style: TextStyle(fontSize: 12)),
+                                    ),
+                                ],
+                              )
+                            else if (_audioPlayer == null || _flatQuestions.isEmpty || _flatQuestions[0].audioUrl == null || _flatQuestions[0].audioUrl!.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 4.0),
+                                child: Text('No audio file associated with this listening unit.', style: TextStyle(color: Colors.orange, fontSize: 12)),
+                              )
+                            else
+                              StreamBuilder<PlayerState>(
+                                stream: _audioPlayer!.playerStateStream,
+                                builder: (context, snapshot) {
+                                  final playerState = snapshot.data;
+                                  final processingState = playerState?.processingState;
+                                  final playing = playerState?.playing;
+                                  
+                                  if (processingState == ProcessingState.loading || processingState == ProcessingState.buffering) {
+                                    return const Center(child: SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2)));
+                                  } else if (playing != true) {
+                                    return ElevatedButton.icon(
+                                      onPressed: _audioPlayer!.play,
+                                      icon: const Icon(Icons.play_arrow),
+                                      label: const Text('Play Audio (Single Play)'),
+                                      style: ElevatedButton.styleFrom(backgroundColor: cfg.primary, padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16)),
+                                    );
+                                  } else if (processingState != ProcessingState.completed) {
+                                    return Row(
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.pause),
+                                          onPressed: _audioPlayer!.pause,
+                                        ),
+                                        const Expanded(child: Text('Playing Section Audio...', style: TextStyle(fontSize: 12))),
+                                      ],
+                                    );
+                                  } else {
+                                    return const Text('Audio Finished.', style: TextStyle(color: Colors.grey, fontSize: 12));
+                                  }
+                                },
+                              ),
                           ],
                         ),
                       ),
@@ -932,6 +992,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     const SizedBox(height: 12),
                     
                     if (!_submitted) ...[
+                      if (_submitError != null)
+                        InlineErrorBanner(
+                          message: _submitError,
+                          onDismiss: () => setState(() => _submitError = null),
+                        ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -950,7 +1015,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
                               backgroundColor: cfg.primary,
                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                             ),
-                            child: const Text('Submit test'),
+                            child: _saving
+                                ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Text('Submit test'),
                           ),
                         ],
                       ),

@@ -9,8 +9,34 @@ import 'auth_state.dart';
 import 'routes.dart';
 import 'theme.dart';
 
+import 'widgets/error_view.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Global Flutter error presentation handling
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('Flutter Unhandled Error: ${details.exceptionAsString()}');
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Platform Dispatcher Error: $error');
+    return true;
+  };
+
+  // Graceful fallback for UI rendering exceptions
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      child: SafeArea(
+        child: ErrorView(
+          title: 'Display Error',
+          message: 'A visual component encountered an issue. Please try refreshing.',
+          icon: Icons.warning_amber_rounded,
+        ),
+      ),
+    );
+  };
 
   // Configure logging for Supabase and other internal tools
   if (kDebugMode) {

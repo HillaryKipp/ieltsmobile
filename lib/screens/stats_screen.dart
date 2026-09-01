@@ -8,6 +8,8 @@ import '../auth_state.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../grading.dart';
+import '../utils/error_utils.dart';
+import '../widgets/error_view.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -80,7 +82,7 @@ class _StatsScreenState extends State<StatsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = ErrorUtils.getFriendlyMessage(e);
           _isLoading = false;
           _hasLoadedOnce = true;
         });
@@ -117,22 +119,10 @@ class _StatsScreenState extends State<StatsScreen> {
     if (_errorMessage != null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Statistics', style: TextStyle(fontWeight: FontWeight.bold))),
-        body: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: AppTheme.primaryColor),
-              const SizedBox(height: 16),
-              const Text('Failed to load statistics', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _loadStatsData,
-                child: const Text('Try Again'),
-              ),
-            ],
-          ),
+        body: ErrorView(
+          error: _errorMessage,
+          title: 'Failed to Load Statistics',
+          onRetry: _loadStatsData,
         ),
       );
     }

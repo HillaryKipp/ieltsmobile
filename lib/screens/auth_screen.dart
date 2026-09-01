@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../auth_state.dart';
 import '../theme.dart';
+import '../utils/error_utils.dart';
+import '../widgets/error_view.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -34,32 +36,42 @@ class _AuthScreenState extends State<AuthScreen> {
       _errorMessage = null;
     });
 
-    final authState = Provider.of<AuthState>(context, listen: false);
+    final auth = Provider.of<AuthState>(context, listen: false);
     
     try {
       if (_isSignUp) {
-        await authState.signUp(
+        await auth.signUp(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Verification email sent! Check your inbox to confirm your account.'),
-              backgroundColor: Colors.green,
-            ),
+          ErrorUtils.showSuccessSnackBar(
+            context,
+            'Verification email sent! Check your inbox to confirm your account.',
           );
         }
       } else {
-        await authState.signIn(
+        await auth.signIn(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
       }
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception:', '').trim();
-      });
+    } catch (_) {
+      // Error handled by AuthState and displayed via InlineErrorBanner
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _errorMessage = null;
+    });
+
+    final auth = Provider.of<AuthState>(context, listen: false);
+    
+    try {
+      await auth.signInWithGoogle();
+    } catch (_) {
+      // Error handled by AuthState and displayed via InlineErrorBanner
     }
   }
 
@@ -117,21 +129,11 @@ class _AuthScreenState extends State<AuthScreen> {
                   await auth.sendPasswordResetEmail(email: email);
                   if (mounted) {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Password reset link sent to $email!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+                    ErrorUtils.showSuccessSnackBar(context, 'Password reset link sent to $email!');
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: ${e.toString()}'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to send reset link');
                   }
                 }
               },
@@ -145,7 +147,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = Provider.of<AuthState>(context).isLoading;
+    final auth = Provider.of<AuthState>(context);
+    final isLoading = auth.isLoading;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -288,20 +291,14 @@ class _AuthScreenState extends State<AuthScreen> {
                           
                           const SizedBox(height: 24),
                           
-                          if (_errorMessage != null) ...[
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.red[50],
-                                border: Border.all(color: Colors.red[200]!),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                _errorMessage!,
-                                style: TextStyle(color: Colors.red[800], fontSize: 13),
-                              ),
+                          if (_errorMessage != null || auth.authError != null) ...[
+                            InlineErrorBanner(
+                              message: _errorMessage ?? auth.authError,
+                              onDismiss: () {
+                                setState(() => _errorMessage = null);
+                                auth.clearAuthError();
+                              },
                             ),
-                            const SizedBox(height: 16),
                           ],
 
                           ElevatedButton(
@@ -316,6 +313,62 @@ class _AuthScreenState extends State<AuthScreen> {
                                     ),
                                   )
                                 : Text(_isSignUp ? 'Sign Up' : 'Sign In'),
+                          ),
+                          
+                          const SizedBox(height: 20),
+                          
+                          // Divider
+                          Row(
+                            children: [
+                              Expanded(child: Divider(color: isDark ? Colors.white24 : Colors.grey[300])),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  'OR',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? Colors.grey[500] : Colors.grey[400],
+                                  ),
+                                ),
+                              ),
+                              Expanded(child: Divider(color: isDark ? Colors.white24 : Colors.grey[300])),
+                            ],
+                          ),
+                          
+                          const SizedBox(height: 20),
+                          
+                          // Google Button
+                          OutlinedButton(
+                            onPressed: isLoading ? null : _handleGoogleSignIn,
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              side: BorderSide(
+                                color: isDark ? Colors.white24 : Colors.grey[300]!,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.network(
+                                  'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                                  height: 20,
+                                  width: 20,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, size: 24),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  _isSignUp ? 'Sign up with Google' : 'Sign in with Google',
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white : Colors.grey[800],
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),

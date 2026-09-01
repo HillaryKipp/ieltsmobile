@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../auth_state.dart';
 import '../models.dart';
 import '../theme.dart';
+import '../utils/error_utils.dart';
+import '../widgets/error_view.dart';
 
 class AdminScreen extends StatefulWidget {
   final String? initialUnitId;
@@ -22,16 +24,19 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   // Units State
   List<Unit> _units = [];
   bool _isLoadingUnits = true;
+  String? _unitsError;
   String _selectedSkillFilter = 'all';
 
   // Questions State
   List<Question> _questions = [];
   bool _isLoadingQuestions = false;
+  String? _questionsError;
   String? _selectedUnitIdForQuestions;
 
   // Settings State
   final _priceController = TextEditingController();
   bool _isLoadingSettings = true;
+  String? _settingsError;
   bool _isSavingSettings = false;
 
   @override
@@ -59,7 +64,10 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   // --- DATA LOADING METHODS ---
 
   Future<void> _loadUnits() async {
-    setState(() => _isLoadingUnits = true);
+    setState(() {
+      _isLoadingUnits = true;
+      _unitsError = null;
+    });
     try {
       final res = await supabase.from('units').select('*').order('skill').order('order_index');
       final list = (res as List<dynamic>).map((e) => Unit.fromJson(e as Map<String, dynamic>)).toList();
@@ -67,16 +75,25 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         setState(() {
           _units = list;
           _isLoadingUnits = false;
+          _unitsError = null;
         });
       }
     } catch (e) {
       debugPrint('Error loading units: $e');
-      if (mounted) setState(() => _isLoadingUnits = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingUnits = false;
+          _unitsError = ErrorUtils.getFriendlyMessage(e);
+        });
+      }
     }
   }
 
   Future<void> _loadQuestions() async {
-    setState(() => _isLoadingQuestions = true);
+    setState(() {
+      _isLoadingQuestions = true;
+      _questionsError = null;
+    });
     try {
       var query = supabase.from('questions').select('*');
       if (_selectedUnitIdForQuestions != null && _selectedUnitIdForQuestions!.isNotEmpty) {
@@ -88,16 +105,25 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         setState(() {
           _questions = list;
           _isLoadingQuestions = false;
+          _questionsError = null;
         });
       }
     } catch (e) {
       debugPrint('Error loading questions: $e');
-      if (mounted) setState(() => _isLoadingQuestions = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingQuestions = false;
+          _questionsError = ErrorUtils.getFriendlyMessage(e);
+        });
+      }
     }
   }
 
   Future<void> _loadSettings() async {
-    setState(() => _isLoadingSettings = true);
+    setState(() {
+      _isLoadingSettings = true;
+      _settingsError = null;
+    });
     try {
       // Fetch public price via RPC or app_settings table
       final priceRes = await supabase.rpc('get_public_price');
@@ -109,10 +135,20 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           _priceController.text = settingRes['value'].toString();
         }
       }
-      if (mounted) setState(() => _isLoadingSettings = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingSettings = false;
+          _settingsError = null;
+        });
+      }
     } catch (e) {
       debugPrint('Error loading settings: $e');
-      if (mounted) setState(() => _isLoadingSettings = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingSettings = false;
+          _settingsError = ErrorUtils.getFriendlyMessage(e);
+        });
+      }
     }
   }
 
@@ -127,9 +163,12 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     final orderCtrl = TextEditingController(text: (unit?.orderIndex ?? (_units.length + 1)).toString());
     String skill = unit?.skill ?? 'listening';
     bool isFree = unit?.isFree ?? false;
+    bool isSaving = false;
+    String? dialogError;
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
@@ -143,92 +182,106 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                    TextFormField(
-                      controller: titleCtrl,
-                      decoration: const InputDecoration(labelText: 'Title', hintText: 'e.g. Listening Practice Test 1'),
-                      validator: (val) => val == null || val.trim().isEmpty ? 'Title is required' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: skill,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Skill'),
-                      items: const [
-                        DropdownMenuItem(value: 'listening', child: Text('Listening')),
-                        DropdownMenuItem(value: 'reading', child: Text('Reading')),
-                        DropdownMenuItem(value: 'writing', child: Text('Writing')),
-                        DropdownMenuItem(value: 'speaking', child: Text('Speaking')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) setDialogState(() => skill = val);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: descCtrl,
-                      decoration: const InputDecoration(labelText: 'Description (Optional)'),
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: orderCtrl,
-                      decoration: const InputDecoration(labelText: 'Order Index'),
-                      keyboardType: TextInputType.number,
-                      validator: (val) {
-                        if (val == null || val.trim().isEmpty) return 'Order index required';
-                        if (int.tryParse(val.trim()) == null) return 'Must be a valid integer';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    SwitchListTile(
-                      title: const Text('Free Unit'),
-                      subtitle: const Text('Accessible without premium membership'),
-                      value: isFree,
-                      onChanged: (val) => setDialogState(() => isFree = val),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ],
+                      if (dialogError != null)
+                        InlineErrorBanner(
+                          message: dialogError,
+                          onDismiss: () => setDialogState(() => dialogError = null),
+                        ),
+                      TextFormField(
+                        controller: titleCtrl,
+                        decoration: const InputDecoration(labelText: 'Title', hintText: 'e.g. Listening Practice Test 1'),
+                        validator: (val) => val == null || val.trim().isEmpty ? 'Title is required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: skill,
+                        isExpanded: true,
+                        decoration: const InputDecoration(labelText: 'Skill'),
+                        items: const [
+                          DropdownMenuItem(value: 'listening', child: Text('Listening')),
+                          DropdownMenuItem(value: 'reading', child: Text('Reading')),
+                          DropdownMenuItem(value: 'writing', child: Text('Writing')),
+                          DropdownMenuItem(value: 'speaking', child: Text('Speaking')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setDialogState(() => skill = val);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: descCtrl,
+                        decoration: const InputDecoration(labelText: 'Description (Optional)'),
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: orderCtrl,
+                        decoration: const InputDecoration(labelText: 'Order Index'),
+                        keyboardType: TextInputType.number,
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) return 'Order index required';
+                          if (int.tryParse(val.trim()) == null) return 'Must be a valid integer';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        title: const Text('Free Unit'),
+                        subtitle: const Text('Accessible without premium membership'),
+                        value: isFree,
+                        onChanged: (val) => setDialogState(() => isFree = val),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
               ElevatedButton(
-                onPressed: () async {
-                  if (!formKey.currentState!.validate()) return;
-                  Navigator.pop(ctx);
-                  try {
-                    final data = {
-                      'title': titleCtrl.text.trim(),
-                      'skill': skill,
-                      'description': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                      'order_index': int.parse(orderCtrl.text.trim()),
-                      'is_free': isFree,
-                    };
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setDialogState(() {
+                          isSaving = true;
+                          dialogError = null;
+                        });
 
-                    if (isEditing) {
-                      await supabase.from('units').update(data).eq('id', unit.id);
-                    } else {
-                      await supabase.from('units').insert(data);
-                    }
+                        try {
+                          final data = {
+                            'title': titleCtrl.text.trim(),
+                            'skill': skill,
+                            'description': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                            'order_index': int.parse(orderCtrl.text.trim()),
+                            'is_free': isFree,
+                          };
 
-                    _loadUnits();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(isEditing ? 'Unit updated!' : 'Unit created!'), backgroundColor: Colors.green),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Failed to save unit: $e'), backgroundColor: Colors.red),
-                      );
-                    }
-                  }
-                },
-                child: Text(isEditing ? 'Save Changes' : 'Create Unit'),
+                          if (isEditing) {
+                            await supabase.from('units').update(data).eq('id', unit.id);
+                          } else {
+                            await supabase.from('units').insert(data);
+                          }
+
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _loadUnits();
+                          if (mounted) {
+                            ErrorUtils.showSuccessSnackBar(context, isEditing ? 'Unit updated successfully!' : 'Unit created successfully!');
+                          }
+                        } catch (e) {
+                          setDialogState(() {
+                            isSaving = false;
+                            dialogError = ErrorUtils.getFriendlyMessage(e);
+                          });
+                        }
+                      },
+                child: isSaving
+                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text(isEditing ? 'Save Changes' : 'Create Unit'),
               ),
             ],
           );
@@ -263,15 +316,11 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           _loadQuestions();
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Unit deleted'), backgroundColor: Colors.green),
-          );
+          ErrorUtils.showSuccessSnackBar(context, 'Unit "${unit.title}" deleted');
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting unit: $e'), backgroundColor: Colors.red),
-          );
+          ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to delete unit');
         }
       }
     }
@@ -341,13 +390,17 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
 
     if (_units.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please create a Unit first before adding questions.'), backgroundColor: Colors.orange),
+                        const SnackBar(content: Text('Please create a Unit first before adding questions.'), backgroundColor: Colors.orange),
       );
       return;
     }
 
+    bool isSaving = false;
+    String? dialogError;
+
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
@@ -361,6 +414,11 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (dialogError != null)
+                        InlineErrorBanner(
+                          message: dialogError,
+                          onDismiss: () => setDialogState(() => dialogError = null),
+                        ),
                       DropdownButtonFormField<String>(
                         value: _units.any((u) => u.id == unitId) ? unitId : _units.first.id,
                         isExpanded: true,
@@ -395,25 +453,22 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                               controller: orderCtrl,
                               decoration: const InputDecoration(labelText: 'Order Index'),
                               keyboardType: TextInputType.number,
-                              validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) return 'Required';
+                                if (int.tryParse(val.trim()) == null) return 'Integer';
+                                return null;
+                              },
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: typeMap.containsKey(qType) ? qType : typeMap.keys.first,
+                        value: qType,
                         isExpanded: true,
                         decoration: const InputDecoration(labelText: 'Question Type'),
-                        items: typeMap.entries.map((entry) {
-                          return DropdownMenuItem(
-                            value: entry.key,
-                            child: Text(
-                              entry.value,
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          );
+                        items: typeMap.entries.map((e) {
+                          return DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis));
                         }).toList(),
                         onChanged: (val) {
                           if (val != null) setDialogState(() => qType = val);
@@ -422,32 +477,35 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: promptCtrl,
-                        decoration: const InputDecoration(labelText: 'Prompt / Question Text'),
-                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Question Prompt / Instructions',
+                          hintText: 'e.g. What is the author\'s main argument?',
+                        ),
+                        maxLines: 2,
                         validator: (val) => val == null || val.trim().isEmpty ? 'Prompt is required' : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: passageCtrl,
-                        decoration: const InputDecoration(labelText: 'Passage Text (for Reading/Writing)'),
+                        decoration: const InputDecoration(labelText: 'Passage Text (Optional)'),
                         maxLines: 4,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: audioCtrl,
-                        decoration: const InputDecoration(labelText: 'Audio URL (for Listening)'),
+                        decoration: const InputDecoration(labelText: 'Audio URL (Optional)'),
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: mediaCtrl,
-                        decoration: const InputDecoration(labelText: 'Media / Image URL'),
+                        decoration: const InputDecoration(labelText: 'Media / Image URL (Optional)'),
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: optionsCtrl,
                         decoration: const InputDecoration(
-                          labelText: 'Options (One option per line OR JSON array)',
-                          hintText: 'Option A\nOption B\nOption C',
+                          labelText: 'Options (List or JSON, Optional)',
+                          hintText: 'One per line or ["Option A", "Option B"]',
                         ),
                         maxLines: 3,
                       ),
@@ -477,72 +535,80 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
               ElevatedButton(
-                onPressed: () async {
-                  if (!formKey.currentState!.validate()) return;
-                  Navigator.pop(ctx);
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setDialogState(() {
+                          isSaving = true;
+                          dialogError = null;
+                        });
 
-                  // Parse options
-                  dynamic parsedOptions;
-                  final rawOpt = optionsCtrl.text.trim();
-                  if (rawOpt.isNotEmpty) {
-                    try {
-                      parsedOptions = jsonDecode(rawOpt);
-                    } catch (_) {
-                      // Treat as newline separated list
-                      parsedOptions = rawOpt.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-                    }
-                  }
+                        // Parse options
+                        dynamic parsedOptions;
+                        final rawOpt = optionsCtrl.text.trim();
+                        if (rawOpt.isNotEmpty) {
+                          try {
+                            parsedOptions = jsonDecode(rawOpt);
+                          } catch (_) {
+                            // Treat as newline separated list
+                            parsedOptions = rawOpt.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+                          }
+                        }
 
-                  // Parse correct answer
-                  dynamic parsedAnswer;
-                  final rawAns = ansCtrl.text.trim();
-                  if (rawAns.isNotEmpty) {
-                    try {
-                      parsedAnswer = jsonDecode(rawAns);
-                    } catch (_) {
-                      parsedAnswer = rawAns;
-                    }
-                  }
+                        // Parse correct answer
+                        dynamic parsedAnswer;
+                        final rawAns = ansCtrl.text.trim();
+                        if (rawAns.isNotEmpty) {
+                          try {
+                            parsedAnswer = jsonDecode(rawAns);
+                          } catch (_) {
+                            parsedAnswer = rawAns;
+                          }
+                        }
 
-                  try {
-                    final data = {
-                      'unit_id': unitId,
-                      'section': int.tryParse(sectionCtrl.text.trim()),
-                      'order_index': int.parse(orderCtrl.text.trim()),
-                      'question_type': qType,
-                      'prompt': promptCtrl.text.trim(),
-                      'passage_text': passageCtrl.text.trim().isEmpty ? null : passageCtrl.text.trim(),
-                      'audio_url': audioCtrl.text.trim().isEmpty ? null : audioCtrl.text.trim(),
-                      'media_url': mediaCtrl.text.trim().isEmpty ? null : mediaCtrl.text.trim(),
-                      'options': parsedOptions,
-                      'correct_answer': parsedAnswer,
-                      'word_limit': int.tryParse(wordLimitCtrl.text.trim()),
-                      'explanation': explanationCtrl.text.trim().isEmpty ? null : explanationCtrl.text.trim(),
-                    };
+                        try {
+                          final data = {
+                            'unit_id': unitId,
+                            'section': int.tryParse(sectionCtrl.text.trim()),
+                            'order_index': int.parse(orderCtrl.text.trim()),
+                            'question_type': qType,
+                            'prompt': promptCtrl.text.trim(),
+                            'passage_text': passageCtrl.text.trim().isEmpty ? null : passageCtrl.text.trim(),
+                            'audio_url': audioCtrl.text.trim().isEmpty ? null : audioCtrl.text.trim(),
+                            'media_url': mediaCtrl.text.trim().isEmpty ? null : mediaCtrl.text.trim(),
+                            'options': parsedOptions,
+                            'correct_answer': parsedAnswer,
+                            'word_limit': int.tryParse(wordLimitCtrl.text.trim()),
+                            'explanation': explanationCtrl.text.trim().isEmpty ? null : explanationCtrl.text.trim(),
+                          };
 
-                    if (isEditing) {
-                      await supabase.from('questions').update(data).eq('id', question.id);
-                    } else {
-                      await supabase.from('questions').insert(data);
-                    }
+                          if (isEditing) {
+                            await supabase.from('questions').update(data).eq('id', question.id);
+                          } else {
+                            await supabase.from('questions').insert(data);
+                          }
 
-                    _loadQuestions();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(isEditing ? 'Question updated!' : 'Question created!'), backgroundColor: Colors.green),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Failed to save question: $e'), backgroundColor: Colors.red),
-                      );
-                    }
-                  }
-                },
-                child: Text(isEditing ? 'Save Changes' : 'Create Question'),
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _loadQuestions();
+                          if (mounted) {
+                            ErrorUtils.showSuccessSnackBar(context, isEditing ? 'Question updated successfully!' : 'Question created successfully!');
+                          }
+                        } catch (e) {
+                          setDialogState(() {
+                            isSaving = false;
+                            dialogError = ErrorUtils.getFriendlyMessage(e);
+                          });
+                        }
+                      },
+                child: isSaving
+                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text(isEditing ? 'Save Changes' : 'Create Question'),
               ),
             ],
           );
@@ -573,15 +639,11 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         await supabase.from('questions').delete().eq('id', q.id);
         _loadQuestions();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Question deleted'), backgroundColor: Colors.green),
-          );
+          ErrorUtils.showSuccessSnackBar(context, 'Question deleted successfully');
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting question: $e'), backgroundColor: Colors.red),
-          );
+          ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to delete question');
         }
       }
     }
@@ -606,15 +668,11 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('App settings updated successfully!'), backgroundColor: Colors.green),
-        );
+        ErrorUtils.showSuccessSnackBar(context, 'App settings updated successfully!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating settings: $e'), backgroundColor: Colors.red),
-        );
+        ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to update settings');
       }
     } finally {
       if (mounted) setState(() => _isSavingSettings = false);
@@ -719,9 +777,21 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
             Expanded(
               child: _isLoadingUnits
                   ? const Center(child: CircularProgressIndicator())
-                  : filteredUnits.isEmpty
-                      ? const Center(child: Text('No units found.'))
-                      : RefreshIndicator(
+                  : _unitsError != null
+                      ? ErrorView(
+                          error: _unitsError,
+                          title: 'Failed to Load Units',
+                          onRetry: _loadUnits,
+                        )
+                      : filteredUnits.isEmpty
+                          ? Center(
+                              child: Text(
+                                _selectedSkillFilter == 'all'
+                                    ? 'No units created yet.'
+                                    : 'No units found for ${_selectedSkillFilter.toUpperCase()}.',
+                              ),
+                            )
+                          : RefreshIndicator(
                           onRefresh: _loadUnits,
                           child: ListView.builder(
                             itemCount: filteredUnits.length,
@@ -826,9 +896,21 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
             Expanded(
               child: _isLoadingQuestions
                   ? const Center(child: CircularProgressIndicator())
-                  : _questions.isEmpty
-                      ? const Center(child: Text('No questions found for the selected unit.'))
-                      : RefreshIndicator(
+                  : _questionsError != null
+                      ? ErrorView(
+                          error: _questionsError,
+                          title: 'Failed to Load Questions',
+                          onRetry: _loadQuestions,
+                        )
+                      : _questions.isEmpty
+                          ? Center(
+                              child: Text(
+                                _selectedUnitIdForQuestions != null
+                                    ? 'No questions found for the selected unit.'
+                                    : 'No questions created yet.',
+                              ),
+                            )
+                          : RefreshIndicator(
                           onRefresh: _loadQuestions,
                           child: ListView.builder(
                             itemCount: _questions.length,
@@ -922,24 +1004,36 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 children: [
                   const Text('Public Membership Price (KSH)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                   const SizedBox(height: 12),
-                  _isLoadingSettings
-                      ? const Center(child: CircularProgressIndicator())
-                      : TextFormField(
-                          controller: _priceController,
-                          decoration: const InputDecoration(
-                            labelText: 'One-time Payment Price',
-                            prefixText: 'KSH ',
-                            prefixIcon: Icon(Icons.payments_outlined),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _isSavingSettings ? null : _saveSettings,
-                    child: _isSavingSettings
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('Save Settings'),
-                  ),
+                  if (_isLoadingSettings)
+                    const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()))
+                  else if (_settingsError != null) ...[
+                    InlineErrorBanner(
+                      message: _settingsError,
+                      onDismiss: () => setState(() => _settingsError = null),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _loadSettings,
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Retry Loading Settings'),
+                    ),
+                  ] else ...[
+                    TextFormField(
+                      controller: _priceController,
+                      decoration: const InputDecoration(
+                        labelText: 'One-time Payment Price',
+                        prefixText: 'KSH ',
+                        prefixIcon: Icon(Icons.payments_outlined),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _isSavingSettings ? null : _saveSettings,
+                      child: _isSavingSettings
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Save Settings'),
+                    ),
+                  ],
                 ],
               ),
             ),

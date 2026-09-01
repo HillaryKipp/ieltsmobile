@@ -6,6 +6,7 @@ import 'package:app_links/app_links.dart';
 import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'config.dart';
+import 'utils/error_utils.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -15,6 +16,8 @@ class AuthState extends ChangeNotifier {
   bool _isAdmin = false;
   bool _isLoading = true;
   bool _resetPasswordRequired = false;
+  String? _authError;
+  String? _profileError;
 
   final _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
@@ -25,6 +28,18 @@ class AuthState extends ChangeNotifier {
   bool get isAdmin => _isAdmin;
   bool get isLoading => _isLoading;
   bool get resetPasswordRequired => _resetPasswordRequired;
+  String? get authError => _authError;
+  String? get profileError => _profileError;
+
+  void clearAuthError() {
+    _authError = null;
+    notifyListeners();
+  }
+
+  void clearProfileError() {
+    _profileError = null;
+    notifyListeners();
+  }
 
   AuthState() {
     _init();
@@ -40,9 +55,11 @@ class AuthState extends ChangeNotifier {
         } else {
           _profile = null;
           _isAdmin = false;
+          _profileError = null;
         }
       } catch (e) {
         debugPrint('Auth listener error: $e');
+        _authError = e.toString();
       } finally {
         _isLoading = false;
         notifyListeners();
@@ -54,6 +71,8 @@ class AuthState extends ChangeNotifier {
       await _handleIncomingLink(uri);
     }, onError: (err) {
       debugPrint('Deep Link Error: $err');
+      _authError = 'Error processing authentication link: $err';
+      notifyListeners();
     });
 
     // Handle initial link if app was closed
@@ -84,6 +103,8 @@ class AuthState extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Error handling deep link: $e');
+      _authError = 'Failed to authenticate via link: ${e.toString()}';
+      notifyListeners();
     }
   }
 
@@ -104,8 +125,10 @@ class AuthState extends ChangeNotifier {
         '_role': 'admin',
       });
       _isAdmin = adminRes as bool? ?? false;
+      _profileError = null;
     } catch (e) {
       debugPrint('Error fetching profile/role: $e');
+      _profileError = 'Unable to fetch your user profile: $e';
     }
   }
 
@@ -129,6 +152,7 @@ class AuthState extends ChangeNotifier {
 
   Future<void> signUp({required String email, required String password}) async {
     _isLoading = true;
+    _authError = null;
     notifyListeners();
     try {
       await supabase.auth.signUp(
@@ -136,6 +160,10 @@ class AuthState extends ChangeNotifier {
         password: password,
         emailRedirectTo: Env.authRedirect,
       );
+    } catch (e) {
+      debugPrint('SignUp Error: $e');
+      _authError = ErrorUtils.getFriendlyMessage(e);
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -144,9 +172,34 @@ class AuthState extends ChangeNotifier {
 
   Future<void> signIn({required String email, required String password}) async {
     _isLoading = true;
+    _authError = null;
     notifyListeners();
     try {
       await supabase.auth.signInWithPassword(email: email, password: password);
+    } catch (e) {
+      debugPrint('SignIn Error: $e');
+      _authError = ErrorUtils.getFriendlyMessage(e);
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    _isLoading = true;
+    _authError = null;
+    notifyListeners();
+    try {
+      await supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: Env.authRedirect,
+        authScreenLaunchMode: LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      debugPrint('Google Sign-In Error: $e');
+      _authError = ErrorUtils.getFriendlyMessage(e);
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -154,17 +207,33 @@ class AuthState extends ChangeNotifier {
   }
 
   Future<void> sendPasswordResetEmail({required String email}) async {
-    await supabase.auth.resetPasswordForEmail(email, redirectTo: Env.authRedirect);
+    _authError = null;
+    notifyListeners();
+    try {
+      await supabase.auth.resetPasswordForEmail(email, redirectTo: Env.authRedirect);
+    } catch (e) {
+      debugPrint('Reset Password Email Error: $e');
+      _authError = ErrorUtils.getFriendlyMessage(e);
+      rethrow;
+    }
   }
 
   Future<void> updatePassword(String newPassword) async {
-    await supabase.auth.updateUser(UserAttributes(password: newPassword));
-    clearResetPasswordRequired();
+    _authError = null;
+    notifyListeners();
+    try {
+      await supabase.auth.updateUser(UserAttributes(password: newPassword));
+      clearResetPasswordRequired();
+    } catch (e) {
+      debugPrint('Update Password Error: $e');
+      _authError = ErrorUtils.getFriendlyMessage(e);
+      rethrow;
+    }
   }
 
   Future<void> initiateMpesaPayment(String phone) async {
     final session = supabase.auth.currentSession;
-    if (session == null) throw Exception('No active session');
+    if (session == null) throw Exception('No active session. Please sign in.');
 
     final response = await http.post(
       Uri.parse('${Env.webOrigin}/api/public/mpesa/initiate'),
@@ -176,7 +245,16 @@ class AuthState extends ChangeNotifier {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to initiate payment: ${response.body}');
+      String errorMessage = response.body;
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map && decoded['error'] != null) {
+          errorMessage = decoded['error'].toString();
+        } else if (decoded is Map && decoded['message'] != null) {
+          errorMessage = decoded['message'].toString();
+        }
+      } catch (_) {}
+      throw Exception(errorMessage);
     }
   }
 

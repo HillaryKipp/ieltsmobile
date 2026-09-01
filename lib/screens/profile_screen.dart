@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../auth_state.dart';
 import '../theme.dart';
+import '../utils/error_utils.dart';
+import '../widgets/error_view.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -26,27 +28,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isInitiatingPayment = false;
   double? _price;
   bool _isLoadingPrice = true;
+  String? _priceError;
 
   @override
   void initState() {
-    super.didChangeDependencies();
+    super.initState();
     _prefillFields();
     _fetchPrice();
   }
 
   Future<void> _fetchPrice() async {
+    setState(() {
+      _isLoadingPrice = true;
+      _priceError = null;
+    });
     try {
       final res = await supabase.rpc('get_public_price');
       if (mounted) {
         setState(() {
           _price = (res as num?)?.toDouble();
           _isLoadingPrice = false;
+          _priceError = null;
         });
       }
     } catch (e) {
       debugPrint('Error fetching price: $e');
       if (mounted) {
-        setState(() => _isLoadingPrice = false);
+        setState(() {
+          _isLoadingPrice = false;
+          _priceError = ErrorUtils.getFriendlyMessage(e);
+        });
       }
     }
   }
@@ -95,15 +106,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         examDate: _selectedExamDate,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
-        );
+        ErrorUtils.showSuccessSnackBar(context, 'Profile updated successfully!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating profile: $e'), backgroundColor: Colors.red),
-        );
+        ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to update profile');
       }
     } finally {
       if (mounted) setState(() => _isSavingProfile = false);
@@ -120,15 +127,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await auth.updatePassword(_passwordController.text.trim());
       _passwordController.clear();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password updated successfully!'), backgroundColor: Colors.green),
-        );
+        ErrorUtils.showSuccessSnackBar(context, 'Password updated successfully!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
+        ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to update password');
       }
     } finally {
       if (mounted) setState(() => _isUpdatingPassword = false);
@@ -161,9 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting account: $e'), backgroundColor: Colors.red),
-          );
+          ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to delete account');
         }
       }
     }
@@ -183,15 +184,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final auth = Provider.of<AuthState>(context, listen: false);
       await auth.initiateMpesaPayment(phone);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('STK Push sent! Please check your phone.'), backgroundColor: Colors.green),
-        );
+        ErrorUtils.showSuccessSnackBar(context, 'STK Push sent! Please check your phone.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment initiation failed: $e'), backgroundColor: Colors.red),
-        );
+        ErrorUtils.showErrorSnackBar(context, e, prefix: 'Payment initiation failed');
       }
     } finally {
       if (mounted) setState(() => _isInitiatingPayment = false);
@@ -235,6 +232,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (auth.profileError != null)
+                    InlineErrorBanner(
+                      message: auth.profileError,
+                      onDismiss: () => auth.clearProfileError(),
+                    ),
                   // Admin Panel Card for Admins
                   if (auth.isAdmin) ...[
                     Card(
@@ -457,7 +459,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 16),
                       if (_isLoadingPrice)
-                        const Center(child: CircularProgressIndicator())
+                        const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()))
                       else if (_price != null) ...[
                         Text(
                           'KSH ${_price!.toStringAsFixed(0)} One-time Payment',
@@ -485,10 +487,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                         ),
+                      ] else ...[
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF3F1919) : const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFECACA)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.error_outline, size: 18, color: Color(0xFFDC2626)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _priceError ?? 'Failed to load membership pricing.',
+                                      style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              OutlinedButton.icon(
+                                onPressed: _fetchPrice,
+                                icon: const Icon(Icons.refresh, size: 16),
+                                label: const Text('Retry Loading Price'),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ],
                   ],
                 ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Privacy Policy & Legal Card
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.privacy_tip_outlined),
+                title: const Text('Privacy Policy', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/privacy-policy'),
               ),
             ),
             const SizedBox(height: 20),

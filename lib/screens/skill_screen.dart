@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../auth_state.dart';
 import '../models.dart';
 import '../theme.dart';
+import '../utils/error_utils.dart';
+import '../widgets/error_view.dart';
 
 class SkillScreen extends StatefulWidget {
   final String skill;
@@ -69,8 +71,8 @@ class _SkillScreenState extends State<SkillScreen> {
             : Future.value([]),
       ]);
 
-      final List<dynamic> unitsData = results[0] as List<dynamic>;
-      final List<dynamic> attemptsData = results[1] as List<dynamic>;
+      final unitsData = results[0];
+      final attemptsData = results[1];
 
       final loadedUnits = unitsData.map((e) => Unit.fromJson(e as Map<String, dynamic>)).toList();
       
@@ -91,11 +93,18 @@ class _SkillScreenState extends State<SkillScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-          _hasLoadedOnce = true;
-        });
+        if (_hasLoadedOnce && _units.isNotEmpty) {
+          setState(() {
+            _isLoading = false;
+          });
+          ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to refresh units');
+        } else {
+          setState(() {
+            _errorMessage = ErrorUtils.getFriendlyMessage(e);
+            _isLoading = false;
+            _hasLoadedOnce = true;
+          });
+        }
       }
     }
   }
@@ -111,7 +120,6 @@ class _SkillScreenState extends State<SkillScreen> {
 
     // Filter units
     final allUnits = _units;
-    final mockUnits = _units.where((u) => u.title.toLowerCase().contains('mock') || u.title.toLowerCase().contains('exam')).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -121,34 +129,56 @@ class _SkillScreenState extends State<SkillScreen> {
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.account_circle_outlined),
-            onPressed: () => context.go('/profile'),
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+          if (auth.user != null)
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'profile') {
+                  context.go('/profile');
+                } else if (value == 'privacy') {
+                  context.push('/privacy-policy');
+                }
+              },
+              icon: const Icon(Icons.account_circle_outlined),
+              offset: const Offset(0, 45),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'profile',
+                  child: Row(
                     children: [
-                      Icon(Icons.error_outline, size: 48, color: cfg.primary),
-                      const SizedBox(height: 16),
-                      Text('Failed to load ${cfg.label} units', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      const SizedBox(height: 8),
-                      Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _loadSkillData,
-                        style: ElevatedButton.styleFrom(backgroundColor: cfg.primary),
-                        child: const Text('Try Again'),
-                      ),
+                      Icon(Icons.person_outline, size: 20),
+                      SizedBox(width: 12),
+                      Text('My Profile'),
                     ],
                   ),
+                ),
+                const PopupMenuItem(
+                  value: 'privacy',
+                  child: Row(
+                    children: [
+                      Icon(Icons.privacy_tip_outlined, size: 20),
+                      SizedBox(width: 12),
+                      Text('Privacy Policy'),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.login),
+              onPressed: () => context.go('/auth'),
+            ),
+        ],
+      ),
+      body: _isLoading && !_hasLoadedOnce
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null && _units.isEmpty
+              ? ErrorView(
+                  error: _errorMessage,
+                  title: 'Failed to Load ${cfg.label} Units',
+                  onRetry: _loadSkillData,
+                  iconColor: cfg.primary,
                 )
               : CustomScrollView(
                   slivers: [

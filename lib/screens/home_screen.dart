@@ -6,7 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../auth_state.dart';
 import '../models.dart';
 import '../theme.dart';
-import '../grading.dart';
+import '../utils/error_utils.dart';
+import '../widgets/error_view.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,7 +20,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingData = true;
   bool _hasLoadedOnce = false;
   List<UserAttempt> _attempts = [];
-  List<ScoreHistory> _history = [];
   List<Map<String, dynamic>> _rawUnits = [];
   String? _errorMessage;
 
@@ -55,24 +55,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (uid != null) {
         futures.add(supabase.from('user_attempts').select('*, units(*)').eq('user_id', uid));
-        futures.add(supabase
-            .from('score_history')
-            .select('*')
-            .eq('user_id', uid)
-            .order('recorded_at', ascending: false)
-            .limit(20));
       }
 
       final results = await Future.wait(futures);
 
       final List<dynamic> unitsData = results[0] as List<dynamic>;
       final List<dynamic> attemptsData = uid != null ? (results[1] as List<dynamic>) : [];
-      final List<dynamic> historyData = uid != null ? (results[2] as List<dynamic>) : [];
 
       if (mounted) {
         setState(() {
           _attempts = attemptsData.map((e) => UserAttempt.fromJson(e as Map<String, dynamic>)).toList();
-          _history = historyData.map((e) => ScoreHistory.fromJson(e as Map<String, dynamic>)).toList();
           _rawUnits = List<Map<String, dynamic>>.from(unitsData);
           _isLoadingData = false;
           _hasLoadedOnce = true;
@@ -80,11 +72,19 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoadingData = false;
-          _hasLoadedOnce = true;
-        });
+        if (_hasLoadedOnce && _rawUnits.isNotEmpty) {
+          // Keep existing data on pull-to-refresh failure and show SnackBar
+          setState(() {
+            _isLoadingData = false;
+          });
+          ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to refresh dashboard');
+        } else {
+          setState(() {
+            _errorMessage = ErrorUtils.getFriendlyMessage(e);
+            _isLoadingData = false;
+            _hasLoadedOnce = true;
+          });
+        }
       }
     }
   }
@@ -94,32 +94,20 @@ class _HomeScreenState extends State<HomeScreen> {
     final auth = Provider.of<AuthState>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    if (_isLoadingData) {
+    if (_isLoadingData && !_hasLoadedOnce) {
       return Scaffold(
         appBar: _buildAppBar(auth, isDark),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (_errorMessage != null) {
+    if (_errorMessage != null && _rawUnits.isEmpty) {
       return Scaffold(
         appBar: _buildAppBar(auth, isDark),
-        body: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: AppTheme.primaryColor),
-              const SizedBox(height: 16),
-              const Text('Failed to load dashboard data', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _loadDashboardData,
-                child: const Text('Try Again'),
-              ),
-            ],
-          ),
+        body: ErrorView(
+          error: _errorMessage,
+          title: 'Failed to Load Dashboard',
+          onRetry: _loadDashboardData,
         ),
       );
     }
@@ -172,6 +160,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (auth.authError != null)
+                InlineErrorBanner(
+                  message: auth.authError,
+                  onDismiss: () => auth.clearAuthError(),
+                ),
               // Welcome Header
               Text(
                 auth.user != null 
@@ -445,12 +438,44 @@ class _HomeScreenState extends State<HomeScreen> {
         if (auth.user != null)
           Container(
             margin: const EdgeInsets.only(right: 16),
-            child: InkWell(
-              onTap: () => context.go('/profile'),
-              borderRadius: BorderRadius.circular(12),
+            child: PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'profile') {
+                  context.go('/profile');
+                } else if (value == 'privacy') {
+                  context.push('/privacy-policy');
+                }
+              },
+              offset: const Offset(0, 45),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'profile',
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_outline, size: 20),
+                      SizedBox(width: 12),
+                      Text('My Profile'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'privacy',
+                  child: Row(
+                    children: [
+                      Icon(Icons.privacy_tip_outlined, size: 20),
+                      SizedBox(width: 12),
+                      Text('Privacy Policy'),
+                    ],
+                  ),
+                ),
+              ],
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB)), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Row(
                   children: [
                     Icon(Icons.account_circle_outlined, size: 20, color: isDark ? Colors.grey[400] : Colors.grey[700]),

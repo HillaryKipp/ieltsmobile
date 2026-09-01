@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../auth_state.dart';
-import '../theme.dart';
+import '../utils/error_utils.dart';
+import '../widgets/error_view.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -39,18 +40,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       final auth = Provider.of<AuthState>(context, listen: false);
       await auth.updatePassword(_passwordController.text.trim());
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password updated successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        ErrorUtils.showSuccessSnackBar(context, 'Password updated successfully!');
         context.go('/');
       }
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception:', '').trim();
-      });
+    } catch (_) {
+      // Error handled by AuthState and displayed via InlineErrorBanner
     } finally {
       if (mounted) {
         setState(() {
@@ -62,6 +56,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = Provider.of<AuthState>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -139,20 +134,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       ),
                       const SizedBox(height: 24),
                       
-                      if (_errorMessage != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.red[50],
-                            border: Border.all(color: Colors.red[200]!),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(color: Colors.red[800], fontSize: 13),
-                          ),
+                      if (_errorMessage != null || auth.authError != null) ...[
+                        InlineErrorBanner(
+                          message: _errorMessage ?? auth.authError,
+                          onDismiss: () {
+                            setState(() => _errorMessage = null);
+                            auth.clearAuthError();
+                          },
                         ),
-                        const SizedBox(height: 16),
                       ],
 
                       ElevatedButton(
