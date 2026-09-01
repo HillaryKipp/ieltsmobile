@@ -83,7 +83,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
           .select('*')
           .eq('unit_id', widget.unitId)
           .order('section', ascending: true, nullsFirst: true)
-          .order('order_index');
+          .order('order_index', ascending: true);
       
       final List<dynamic> questionsData = questionsRes as List<dynamic>;
       final List<Question> loadedQuestions = questionsData.map((e) => Question.fromJson(e as Map<String, dynamic>)).toList();
@@ -148,6 +148,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
           _flatQuestions = flattened;
           _secondsRemaining = durationSeconds;
           _isLoading = false;
+
+          // Default to Questions tab if Reading but no passage is found on the first question
+          if (loadedUnit.skill == 'reading') {
+            final hasPassage = flattened.isNotEmpty && flattened[0].passageText != null && flattened[0].passageText!.trim().isNotEmpty;
+            if (!hasPassage) {
+              _readingTab = 1;
+            }
+          }
         });
 
         // Initialize Audio player if it's listening skill
@@ -859,10 +867,27 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // Display Questions Panel (if questions tab is selected, or if we submitted, or if not Reading)
-                  if (!isReading || _readingTab == 1 || _submitted) ...[
-                    // Grouped question lists
-                    ..._groupedQuestions.map((group) {
+                  // Display Questions Panel (if questions tab is selected, or if we submitted, or if not Reading, or if it's Reading but no passage exists)
+                  if (!isReading || _readingTab == 1 || _submitted || !hasPassage) ...[
+                    if (_groupedQuestions.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40.0),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Icon(Icons.quiz_outlined, size: 48, color: isDark ? Colors.grey[700] : Colors.grey[300]),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No questions found for this unit.',
+                                style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      // Grouped question lists
+                      ..._groupedQuestions.map((group) {
                       final label = questionTypeLabels[group.type] ?? group.type;
                       final sectionLabel = group.section > 0 ? 'Section ${group.section} · ' : '';
 

@@ -65,7 +65,7 @@ class _SkillScreenState extends State<SkillScreen> {
       final uid = auth.user?.id;
 
       final results = await Future.wait([
-        supabase.from('units').select('*').eq('skill', widget.skill).order('is_free', ascending: false).order('order_index'),
+        supabase.from('units').select('*').eq('skill', widget.skill).order('is_free', ascending: false).order('order_index', ascending: true),
         uid != null 
             ? supabase.from('user_attempts').select('unit_id, band_score').eq('user_id', uid)
             : Future.value([]),

@@ -69,7 +69,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       _unitsError = null;
     });
     try {
-      final res = await supabase.from('units').select('*').order('skill').order('order_index');
+      final res = await supabase.from('units').select('*').order('skill', ascending: true).order('order_index', ascending: true);
       final list = (res as List<dynamic>).map((e) => Unit.fromJson(e as Map<String, dynamic>)).toList();
       if (mounted) {
         setState(() {
