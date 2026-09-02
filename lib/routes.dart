@@ -78,57 +78,66 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: screens,
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB),
-              width: 1,
+    return PopScope(
+      canPop: _selectedIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_selectedIndex != 0) {
+          _onItemTapped(0);
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: screens,
+        ),
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB),
+                width: 1,
+              ),
             ),
           ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: isDark ? const Color(0xFF1E1E24) : Colors.white,
-          selectedItemColor: AppTheme.primaryColor,
-          unselectedItemColor: isDark ? Colors.grey[500] : Colors.grey[600],
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home, color: AppTheme.primaryColor),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.headphones_outlined),
-              activeIcon: Icon(Icons.headphones, color: AppTheme.primaryColor),
-              label: 'Listening',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.menu_book_outlined),
-              activeIcon: Icon(Icons.menu_book, color: AppTheme.primaryColor),
-              label: 'Reading',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.edit_note_outlined),
-              activeIcon: Icon(Icons.edit_note, color: AppTheme.primaryColor),
-              label: 'Writing',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.mic_none_outlined),
-              activeIcon: Icon(Icons.mic, color: AppTheme.primaryColor),
-              label: 'Speaking',
-            ),
-          ],
+          child: BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            onTap: _onItemTapped,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: isDark ? const Color(0xFF1E1E24) : Colors.white,
+            selectedItemColor: AppTheme.primaryColor,
+            unselectedItemColor: isDark ? Colors.grey[500] : Colors.grey[600],
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
+            elevation: 0,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined),
+                activeIcon: Icon(Icons.home, color: AppTheme.primaryColor),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.headphones_outlined),
+                activeIcon: Icon(Icons.headphones, color: AppTheme.primaryColor),
+                label: 'Listening',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.menu_book_outlined),
+                activeIcon: Icon(Icons.menu_book, color: AppTheme.primaryColor),
+                label: 'Reading',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.edit_note_outlined),
+                activeIcon: Icon(Icons.edit_note, color: AppTheme.primaryColor),
+                label: 'Writing',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.mic_none_outlined),
+                activeIcon: Icon(Icons.mic, color: AppTheme.primaryColor),
+                label: 'Speaking',
+              ),
+            ],
+          ),
         ),
       ),
     );

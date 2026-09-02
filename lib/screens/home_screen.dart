@@ -335,7 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () => context.go('/stats'),
+                    onPressed: () => context.push('/stats'),
                     child: const Text('View All', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, fontSize: 14)),
                   ),
                 ],
@@ -646,7 +646,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'profile') {
-                  context.go('/profile');
+                  context.push('/profile');
                 } else if (value == 'privacy') {
                   context.push('/privacy-policy');
                 }
@@ -700,7 +700,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           )
         else
-          TextButton.icon(onPressed: () => context.go('/auth'), icon: const Icon(Icons.login), label: const Text('Sign In', style: TextStyle(fontWeight: FontWeight.bold))),
+          TextButton.icon(onPressed: () => context.push('/auth'), icon: const Icon(Icons.login), label: const Text('Sign In', style: TextStyle(fontWeight: FontWeight.bold))),
       ],
     );
   }

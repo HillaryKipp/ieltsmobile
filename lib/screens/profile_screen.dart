@@ -221,7 +221,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
-          onPressed: () => context.go('/'),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
         ),
         actions: auth.user != null ? [
           IconButton(

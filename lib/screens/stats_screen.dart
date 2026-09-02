@@ -119,7 +119,7 @@ class _StatsScreenState extends State<StatsScreen> {
           centerTitle: true,
           leading: IconButton(
             icon: Icon(Icons.arrow_back, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
-            onPressed: () => context.go('/'),
+            onPressed: () => context.canPop() ? context.pop() : context.go('/'),
           ),
         ),
         body: _buildGuestView(isDark),
@@ -193,7 +193,7 @@ class _StatsScreenState extends State<StatsScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
-          onPressed: () => context.go('/'),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
         ),
       ),
       body: RefreshIndicator(

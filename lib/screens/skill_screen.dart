@@ -407,7 +407,7 @@ class _SkillScreenState extends State<SkillScreen> {
                   // Action button (Play, Lock, or Upgrade)
                   isAccessible
                       ? InkWell(
-                          onTap: () => context.go('/units/${unit.id}'),
+                          onTap: () => context.push('/units/${unit.id}'),
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -433,7 +433,7 @@ class _SkillScreenState extends State<SkillScreen> {
                           ),
                         )
                       : InkWell(
-                          onTap: () => context.go('/profile'),
+                          onTap: () => context.push('/profile'),
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

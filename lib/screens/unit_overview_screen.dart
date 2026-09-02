@@ -108,7 +108,7 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
         title: Text(unit.title, style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
-          onPressed: () => context.go('/skills/${unit.skill}'),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/skills/${unit.skill}'),
         ),
       ),
       body: SingleChildScrollView(
@@ -231,7 +231,7 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
             // Start or lock action button
             isUnlocked
                 ? ElevatedButton(
-                    onPressed: () => context.go('/units/${widget.unitId}/practice'),
+                    onPressed: () => context.push('/units/${widget.unitId}/practice'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: cfg.primary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -247,7 +247,7 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
                   )
                 : ElevatedButton(
                     onPressed: () {
-                      context.go('/profile');
+                      context.push('/profile');
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Purchase a premium membership to unlock all tests!')),
                       );

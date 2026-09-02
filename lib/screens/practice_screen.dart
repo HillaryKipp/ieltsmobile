@@ -149,10 +149,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
           _secondsRemaining = durationSeconds;
           _isLoading = false;
 
-          // Default to Questions tab if Reading but no passage is found on the first question
+          // Default to Questions tab if Reading but no passage is found across questions
           if (loadedUnit.skill == 'reading') {
-            final hasPassage = flattened.isNotEmpty && flattened[0].passageText != null && flattened[0].passageText!.trim().isNotEmpty;
-            if (!hasPassage) {
+            final hasPassageText = flattened.any((q) => q.passageText != null && q.passageText!.trim().isNotEmpty);
+            if (!hasPassageText) {
               _readingTab = 1;
             }
           }
@@ -369,6 +369,29 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
+  Future<bool> _onWillPop() async {
+    if (_submitted) return true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Leave Practice Test?'),
+        content: const Text('Are you sure you want to leave? Your answers will not be saved.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -390,18 +413,32 @@ class _PracticeScreenState extends State<PracticeScreen> {
     final cfg = AppTheme.skills[unit.skill]!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    Widget bodyContent;
     // Handle Speaking
     if (unit.skill == 'speaking') {
-      return _buildSpeakingView(unit, cfg, isDark);
+      bodyContent = _buildSpeakingView(unit, cfg, isDark);
+    } else if (unit.skill == 'writing') {
+      bodyContent = _buildWritingView(unit, cfg, isDark);
+    } else {
+      bodyContent = _buildAutoGradableView(unit, cfg, isDark);
     }
 
-    // Handle Writing
-    if (unit.skill == 'writing') {
-      return _buildWritingView(unit, cfg, isDark);
-    }
-
-    // Handle Listening / Reading
-    return _buildAutoGradableView(unit, cfg, isDark);
+    return PopScope(
+      canPop: _submitted,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          _audioPlayer?.stop();
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/skills/${unit.skill}');
+          }
+        }
+      },
+      child: bodyContent,
+    );
   }
 
   // --- SPEAKING VIEW ---
@@ -668,7 +705,16 @@ class _PracticeScreenState extends State<PracticeScreen> {
     
     // For Reading, we use a custom dual-panel tab system (Passage tab vs Questions tab) on mobile.
     final isReading = unit.skill == 'reading';
-    final hasPassage = isReading && _flatQuestions.isNotEmpty && _flatQuestions[0].passageText != null;
+    String? passageText;
+    if (isReading) {
+      for (final q in _flatQuestions) {
+        if (q.passageText != null && q.passageText!.trim().isNotEmpty) {
+          passageText = q.passageText;
+          break;
+        }
+      }
+    }
+    final hasPassage = isReading && passageText != null;
 
     return Scaffold(
       appBar: _buildPracticeAppBar(unit, cfg),
@@ -843,7 +889,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                             const Text('PASSAGE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.grey)),
                             const SizedBox(height: 12),
                             Text(
-                              _flatQuestions[0].passageText!,
+                              passageText!,
                               style: const TextStyle(fontSize: 14, height: 1.5, leadingDistribution: TextLeadingDistribution.proportional),
                             ),
                           ],
@@ -858,7 +904,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                         childrenPadding: const EdgeInsets.all(16.0),
                         children: [
                           Text(
-                            _flatQuestions[0].passageText!,
+                            passageText!,
                             style: const TextStyle(fontSize: 13, height: 1.4),
                           ),
                         ],
@@ -1439,9 +1485,16 @@ class _PracticeScreenState extends State<PracticeScreen> {
       centerTitle: true,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
-        onPressed: () {
-          _audioPlayer?.stop();
-          context.go('/skills/${unit.skill}');
+        onPressed: () async {
+          final shouldPop = await _onWillPop();
+          if (shouldPop && context.mounted) {
+            _audioPlayer?.stop();
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/skills/${unit.skill}');
+            }
+          }
         },
       ),
     );
