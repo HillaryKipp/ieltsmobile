@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -170,12 +171,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 auth.user != null 
                   ? 'Welcome back, ${auth.profile?.fullName?.split(" ").first ?? "learner"}!'
                   : 'Welcome to IELTSPrep!',
-                style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800),
+                style: GoogleFonts.outfit(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                ),
               ),
               const SizedBox(height: 6),
               Text(
                 auth.user != null ? "Let's continue your IELTS preparation journey." : "Start your IELTS preparation journey today.",
-                style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 15, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               const SizedBox(height: 28),
 
@@ -199,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text('Overall Band Score', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13, fontWeight: FontWeight.w600)),
+                              Text('Overall Band Score', style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 13, fontWeight: FontWeight.w700)),
                               const SizedBox(height: 8),
                               Text(overallBand != null ? overallBand.toStringAsFixed(1) : '—', style: GoogleFonts.outfit(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w800)),
                               const SizedBox(height: 4),
@@ -211,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Stack(
                           alignment: Alignment.center,
                           children: [
-                            SizedBox(width: 75, height: 75, child: CircularProgressIndicator(value: (overallPct ?? 0) / 100, strokeWidth: 9, color: Colors.white, backgroundColor: Colors.white.withOpacity(0.2), strokeCap: StrokeCap.round)),
+                            SizedBox(width: 75, height: 75, child: CircularProgressIndicator(value: (overallPct ?? 0) / 100, strokeWidth: 9, color: Colors.white, backgroundColor: Colors.white.withOpacity(0.25), strokeCap: StrokeCap.round)),
                             Text('${overallPct ?? 0}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15)),
                           ],
                         ),
@@ -219,19 +228,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   if (isWide) const SizedBox(width: 20) else const SizedBox(height: 20),
-                  // Progress Summary
+                  // Progress Summary ("Your Progress" Card)
                   Container(
                     constraints: const BoxConstraints(minHeight: 140),
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E1E24) : Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFF3F4F6), width: 1.5),
+                      border: Border.all(color: isDark ? Colors.white.withOpacity(0.12) : const Color(0xFFE5E7EB), width: 1.5),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Your Progress', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text(
+                          'Your Progress',
+                          style: GoogleFonts.outfit(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -240,10 +256,25 @@ class _HomeScreenState extends State<HomeScreen> {
                             final summary = skillData[s]!;
                             return Column(
                               children: [
-                                Icon(cfg.icon, color: cfg.primary, size: 22),
+                                Icon(cfg.icon, color: cfg.primary, size: 24),
                                 const SizedBox(height: 8),
-                                Text(summary.avgBand > 0 ? summary.avgBand.toStringAsFixed(1) : '—', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
-                                Text(cfg.label, style: TextStyle(color: Colors.grey[500], fontSize: 10, fontWeight: FontWeight.w600)),
+                                Text(
+                                  summary.avgBand > 0 ? summary.avgBand.toStringAsFixed(1) : '—',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 15,
+                                    color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  cfg.label,
+                                  style: TextStyle(
+                                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ],
                             );
                           }).toList(),
@@ -275,7 +306,7 @@ class _HomeScreenState extends State<HomeScreen> {
               }),
               const SizedBox(height: 32),
 
-              // Skill Grid
+              // Skill Grid (Cards AFTER Your Progress)
               LayoutBuilder(builder: (context, constraints) {
                 final isWide = constraints.maxWidth > 900;
                 final isMedium = constraints.maxWidth > 600;
@@ -291,12 +322,22 @@ class _HomeScreenState extends State<HomeScreen> {
               }),
               const SizedBox(height: 32),
 
-              // Recent Tests
+              // Recent Tests Section Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Recent Tests', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
-                  TextButton(onPressed: () => context.go('/stats'), child: const Text('View All', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold))),
+                  Text(
+                    'Recent Tests',
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.go('/stats'),
+                    child: const Text('View All', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, fontSize: 14)),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -304,6 +345,37 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildEmptyState(isDark)
               else
                 ...List.generate(_attempts.length > 5 ? 5 : _attempts.length, (index) => _buildRecentAttemptItem(_attempts[index], isDark)),
+              if (auth.user == null) ...[
+                const SizedBox(height: 24),
+                Center(
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push('/privacy-policy'),
+                    icon: Icon(
+                      Icons.privacy_tip_outlined,
+                      size: 18,
+                      color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                    ),
+                    label: Text(
+                      'Privacy Policy',
+                      style: TextStyle(
+                        color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: isDark ? Colors.white.withOpacity(0.12) : const Color(0xFFE5E7EB),
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 40),
             ],
           ),
@@ -320,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E24) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFF3F4F6), width: 1.5),
+        border: Border.all(color: isDark ? Colors.white.withOpacity(0.12) : const Color(0xFFE5E7EB), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,30 +400,83 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(cfg.label.toUpperCase(), style: TextStyle(color: cfg.primary, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.2)),
+              Text(
+                cfg.label.toUpperCase(),
+                style: TextStyle(color: cfg.primary, fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 1.2),
+              ),
               Icon(cfg.icon, color: cfg.primary, size: 28),
             ],
           ),
           const SizedBox(height: 8),
-          Text(cfg.tagline, style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 12, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis),
+          Text(
+            cfg.tagline,
+            style: TextStyle(
+              color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+              fontSize: 13,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           const SizedBox(height: 20),
-          Text('Latest Test', style: TextStyle(color: Colors.grey[500], fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(
+            'Latest Test',
+            style: TextStyle(
+              color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+            ),
+          ),
           const SizedBox(height: 8),
           if (latest != null)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(latest.unit?.title ?? 'Practice Test', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text(DateFormat('MMM d, yyyy').format(latest.completedAt), style: TextStyle(color: Colors.grey[500], fontSize: 11)),
-                ])),
-                Text(latest.bandScore?.toStringAsFixed(1) ?? '—', style: GoogleFonts.outfit(color: cfg.primary, fontWeight: FontWeight.w800, fontSize: 16)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        latest.unit?.title ?? 'Practice Test',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        DateFormat('MMM d, yyyy').format(latest.completedAt),
+                        style: TextStyle(
+                          color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  latest.bandScore?.toStringAsFixed(1) ?? '—',
+                  style: GoogleFonts.outfit(color: cfg.primary, fontWeight: FontWeight.w800, fontSize: 17),
+                ),
               ],
             )
           else
-            Text('No tests taken yet', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+            Text(
+              'No tests taken yet',
+              style: TextStyle(
+                color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           const Spacer(),
-          const Divider(height: 24, thickness: 1),
+          Divider(height: 24, thickness: 1, color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB)),
           _buildStatRow('Available Units', summary.availableTests.toString(), isDark),
           const SizedBox(height: 8),
           _buildStatRow('Average Score', summary.avgBand > 0 ? summary.avgBand.toStringAsFixed(1) : '—', isDark, isBold: true),
@@ -361,11 +486,25 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(12),
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(12), border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB))),
-              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text('Start Practicing', style: TextStyle(color: isDark ? Colors.white : Colors.grey[800], fontWeight: FontWeight.bold, fontSize: 13)),
-                Icon(Icons.chevron_right, size: 18, color: cfg.primary),
-              ]),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? Colors.white.withOpacity(0.12) : const Color(0xFFD1D5DB)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Start Practicing',
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 18, color: cfg.primary),
+                ],
+              ),
             ),
           ),
         ],
@@ -377,8 +516,22 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
-        Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.white : Colors.grey[800])),
+        Text(
+          label,
+          style: TextStyle(
+            color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+            fontSize: 12,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 12,
+            color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+          ),
+        ),
       ],
     );
   }
@@ -391,17 +544,52 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(color: isDark ? const Color(0xFF1E1E24) : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFF3F4F6), width: 1.5)),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white.withOpacity(0.12) : const Color(0xFFE5E7EB), width: 1.5),
+      ),
       child: Row(
         children: [
-          Container(height: 48, width: 48, decoration: BoxDecoration(color: cfg.soft, borderRadius: BorderRadius.circular(12)), child: Icon(cfg.icon, color: cfg.primary, size: 24)),
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(color: cfg.soft, borderRadius: BorderRadius.circular(12)),
+            child: Icon(cfg.icon, color: cfg.primary, size: 24),
+          ),
           const SizedBox(width: 16),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(unit.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            const SizedBox(height: 4),
-            Text(formattedDate, style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
-          ])),
-          Text(attempt.bandScore != null ? attempt.bandScore!.toStringAsFixed(1) : '—', style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 18, color: isDark ? Colors.white : Colors.grey[800])),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  unit.title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  formattedDate,
+                  style: TextStyle(
+                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            attempt.bandScore != null ? attempt.bandScore!.toStringAsFixed(1) : '—',
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+              color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+            ),
+          ),
         ],
       ),
     );
@@ -411,12 +599,24 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(32.0),
-      decoration: BoxDecoration(color: isDark ? const Color(0xFF1E1E24) : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFF3F4F6), width: 1.5)),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white.withOpacity(0.12) : const Color(0xFFE5E7EB), width: 1.5),
+      ),
       child: Column(
         children: [
-          Icon(Icons.assignment_outlined, size: 40, color: Colors.grey[300]),
+          Icon(Icons.assignment_outlined, size: 40, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
           const SizedBox(height: 12),
-          Text('No tests completed yet. Start practicing with a free unit!', textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 14)),
+          Text(
+            'No tests completed yet. Start practicing with a free unit!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -426,11 +626,16 @@ class _HomeScreenState extends State<HomeScreen> {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      ),
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('IELTS', style: TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primaryColor, fontFamily: 'Outfit', fontSize: 22)),
-          Text('Prep', style: TextStyle(fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.grey[800], fontFamily: 'Outfit', fontSize: 22)),
+          Text('Prep', style: TextStyle(fontWeight: FontWeight.w900, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight, fontFamily: 'Outfit', fontSize: 22)),
         ],
       ),
       centerTitle: false,
@@ -473,15 +678,22 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB)),
+                  border: Border.all(color: isDark ? Colors.white.withOpacity(0.12) : const Color(0xFFD1D5DB)),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.account_circle_outlined, size: 20, color: isDark ? Colors.grey[400] : Colors.grey[700]),
+                    Icon(Icons.account_circle_outlined, size: 20, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
                     const SizedBox(width: 8),
-                    Text('My Account', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.grey[300] : Colors.grey[800])),
-                    Icon(Icons.keyboard_arrow_down, size: 16, color: isDark ? Colors.grey[600] : Colors.grey[500]),
+                    Text(
+                      'My Account',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                      ),
+                    ),
+                    Icon(Icons.keyboard_arrow_down, size: 16, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
                   ],
                 ),
               ),

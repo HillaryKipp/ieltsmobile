@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class SkillTheme {
@@ -25,6 +26,15 @@ class AppTheme {
   // Brand colors
   static const Color primaryColor = Color(0xFFC22929);
   static const Color secondaryColor = Color(0xFF4B5563);
+
+  // Text colors (High Contrast)
+  static const Color textPrimaryLight = Color(0xFF111827);   // Gray 900
+  static const Color textSecondaryLight = Color(0xFF374151); // Gray 700
+  static const Color textMutedLight = Color(0xFF4B5563);     // Gray 600
+
+  static const Color textPrimaryDark = Color(0xFFF9FAFB);    // Gray 50
+  static const Color textSecondaryDark = Color(0xFFE5E7EB);  // Gray 200
+  static const Color textMutedDark = Color(0xFF9CA3AF);      // Gray 400
   
   // Surfaces
   static const Color lightBg = Color(0xFFF9F9F8);
@@ -38,37 +48,37 @@ class AppTheme {
       label: 'Listening',
       tagline: 'Improve your listening skills with real IELTS tests.',
       icon: Icons.headphones_outlined,
-      primary: Color(0xFFE2722B),
-      soft: Color(0xFFFDF4ED),
-      foreground: Color(0xFFA24E1B),
-      border: Color(0x4DE2722B),
+      primary: const Color(0xFFE2722B),
+      soft: const Color(0xFFFDF4ED),
+      foreground: const Color(0xFFA24E1B),
+      border: const Color(0x4DE2722B),
     ),
     'reading': SkillTheme(
       label: 'Reading',
       tagline: 'Improve your reading skills with real IELTS tests.',
       icon: Icons.book_outlined,
-      primary: Color(0xFF2E9A60),
-      soft: Color(0xFFEEF9F3),
-      foreground: Color(0xFF1A6B3E),
-      border: Color(0x4D2E9A60),
+      primary: const Color(0xFF2E9A60),
+      soft: const Color(0xFFEEF9F3),
+      foreground: const Color(0xFF1A6B3E),
+      border: const Color(0x4D2E9A60),
     ),
     'writing': SkillTheme(
       label: 'Writing',
       tagline: 'Improve your writing skills with real IELTS tasks.',
       icon: Icons.edit_note_outlined,
-      primary: Color(0xFF2563EB),
-      soft: Color(0xFFEEF2FF),
-      foreground: Color(0xFF1E40AF),
-      border: Color(0x4D2563EB),
+      primary: const Color(0xFF2563EB),
+      soft: const Color(0xFFEEF2FF),
+      foreground: const Color(0xFF1E40AF),
+      border: const Color(0x4D2563EB),
     ),
     'speaking': SkillTheme(
       label: 'Speaking',
       tagline: 'Improve your speaking skills with real IELTS tests.',
       icon: Icons.mic_none_outlined,
-      primary: Color(0xFF8B5CF6),
-      soft: Color(0xFFF5F3FF),
-      foreground: Color(0xFF5B21B6),
-      border: Color(0x4D8B5CF6),
+      primary: const Color(0xFF8B5CF6),
+      soft: const Color(0xFFF5F3FF),
+      foreground: const Color(0xFF5B21B6),
+      border: const Color(0x4D8B5CF6),
     ),
   };
 
@@ -82,19 +92,45 @@ class AppTheme {
       colorScheme: const ColorScheme.light(
         primary: primaryColor,
         secondary: secondaryColor,
-        background: lightBg,
         surface: lightCard,
+        onSurface: textPrimaryLight,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: IconThemeData(color: textPrimaryLight),
+        actionsIconTheme: IconThemeData(color: textPrimaryLight),
+        titleTextStyle: TextStyle(
+          fontFamily: 'Outfit',
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: textPrimaryLight,
+        ),
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+        ),
       ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme).copyWith(
         titleLarge: GoogleFonts.outfit(
           fontSize: 22,
           fontWeight: FontWeight.bold,
-          color: const Color(0xFF1F2937),
+          color: textPrimaryLight,
         ),
         headlineMedium: GoogleFonts.outfit(
           fontSize: 28,
           fontWeight: FontWeight.w800,
-          color: const Color(0xFF1F2937),
+          color: textPrimaryLight,
+        ),
+        bodyMedium: GoogleFonts.inter(
+          fontSize: 14,
+          color: textSecondaryLight,
+        ),
+        bodySmall: GoogleFonts.inter(
+          fontSize: 12,
+          color: textMutedLight,
         ),
       ),
       cardTheme: CardThemeData(
@@ -103,7 +139,7 @@ class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16.0),
-          side: const BorderSide(color: Color(0xFFF3F4F6), width: 1.5),
+          side: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -148,19 +184,45 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: primaryColor,
         secondary: secondaryColor,
-        background: darkBg,
         surface: darkCard,
+        onSurface: textPrimaryDark,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: IconThemeData(color: textPrimaryDark),
+        actionsIconTheme: IconThemeData(color: textPrimaryDark),
+        titleTextStyle: TextStyle(
+          fontFamily: 'Outfit',
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: textPrimaryDark,
+        ),
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
       ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
         titleLarge: GoogleFonts.outfit(
           fontSize: 22,
           fontWeight: FontWeight.bold,
-          color: const Color(0xFFF3F4F6),
+          color: textPrimaryDark,
         ),
         headlineMedium: GoogleFonts.outfit(
           fontSize: 28,
           fontWeight: FontWeight.w800,
-          color: const Color(0xFFF3F4F6),
+          color: textPrimaryDark,
+        ),
+        bodyMedium: GoogleFonts.inter(
+          fontSize: 14,
+          color: textSecondaryDark,
+        ),
+        bodySmall: GoogleFonts.inter(
+          fontSize: 12,
+          color: textMutedDark,
         ),
       ),
       cardTheme: CardThemeData(

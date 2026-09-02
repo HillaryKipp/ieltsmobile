@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -201,6 +202,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final profile = auth.profile;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final appBarOverlay = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+    );
+
     int? daysToExam;
     if (_selectedExamDate != null) {
       final difference = _selectedExamDate!.difference(DateTime.now()).inDays;
@@ -209,15 +216,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+        systemOverlayStyle: appBarOverlay,
+        title: Text('Your Profile', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
           onPressed: () => context.go('/'),
         ),
         actions: auth.user != null ? [
           IconButton(
-            icon: const Icon(Icons.logout_outlined),
+            icon: Icon(Icons.logout_outlined, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
             onPressed: () async {
               await auth.signOut();
               if (mounted) context.go('/auth');
@@ -265,9 +273,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('Admin Control Panel', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    Text('Admin Control Panel', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
                                     const SizedBox(height: 4),
-                                    Text('Manage units, questions, and app settings', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                                    Text('Manage units, questions, and app settings', style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontWeight: FontWeight.w500)),
                                   ],
                                 ),
                               ),
@@ -282,293 +290,302 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   // Countdown Card
                   if (daysToExam != null) ...[
-              Card(
-                color: AppTheme.primaryColor,
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Exam countdown',
-                        style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '$daysToExam days',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          fontFamily: 'Outfit',
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'until your IELTS exam on ${DateFormat.yMMMMd().format(_selectedExamDate!)}',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
-
-            // Profile info form card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Form(
-                  key: _profileFormKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Text('Edit Profile details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                      const SizedBox(height: 20),
-                      
-                      // Full name input
-                      TextFormField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Full Name',
-                          prefixIcon: Icon(Icons.person_outline),
-                        ),
-                        validator: (val) => val == null || val.trim().isEmpty ? 'Full name is required' : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Phone input
-                      TextFormField(
-                        controller: _phoneController,
-                        decoration: const InputDecoration(
-                          labelText: 'Phone (for payments)',
-                          prefixIcon: Icon(Icons.phone_outlined),
-                          hintText: '+2547...',
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Exam Date Picker field
-                      InkWell(
-                        onTap: _selectExamDate,
-                        borderRadius: BorderRadius.circular(10),
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Exam Date',
-                            prefixIcon: Icon(Icons.calendar_today_outlined),
-                          ),
-                          child: Text(
-                            _selectedExamDate != null 
-                                ? DateFormat.yMMMMd().format(_selectedExamDate!) 
-                                : 'Select exam date...',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: _selectedExamDate != null 
-                                  ? (isDark ? Colors.white : Colors.black87) 
-                                  : Colors.grey,
+                    Card(
+                      color: AppTheme.primaryColor,
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Exam countdown',
+                              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                             ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      ElevatedButton(
-                        onPressed: _isSavingProfile ? null : _saveProfile,
-                        child: _isSavingProfile
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Text('Save changes'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Change password card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Form(
-                  key: _passwordFormKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Text('Change password', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(
-                          labelText: 'New Password',
-                          prefixIcon: Icon(Icons.lock_outlined),
-                        ),
-                        validator: (val) {
-                          if (val == null || val.isEmpty) return 'Password is required';
-                          if (val.length < 6) return 'Password must be at least 6 characters';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 18),
-                      ElevatedButton(
-                        onPressed: _isUpdatingPassword ? null : _changePassword,
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, foregroundColor: isDark ? Colors.white : Colors.black87, side: BorderSide(color: isDark ? Colors.grey[700]! : const Color(0xFFD1D5DB)), shadowColor: Colors.transparent),
-                        child: _isUpdatingPassword
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Update password'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Membership status and Upgrade card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text('Membership Access Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Icon(
-                          profile?.isPaid == true ? Icons.check_circle_outline : Icons.lock_outline,
-                          color: profile?.isPaid == true ? Colors.green : Colors.grey,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            profile?.isPaid == true
-                                ? 'You have full unlocked access to all tests.'
-                                : 'You have access to free tests only.',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (profile?.isPaid != true) ...[
-                      const Divider(height: 32),
-                      const Text(
-                        'Unlock all practice units and detailed analytics with a one-time premium membership.',
-                        style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.4),
-                      ),
-                      const SizedBox(height: 16),
-                      if (_isLoadingPrice)
-                        const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()))
-                      else if (_price != null) ...[
-                        Text(
-                          'KSH ${_price!.toStringAsFixed(0)} One-time Payment',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _isInitiatingPayment ? null : _initiatePayment,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[600],
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: _isInitiatingPayment
-                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                              : const Text('Upgrade via M-Pesa STK Push', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Ensure your phone number is correct above.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                        ),
-                      ] else ...[
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF3F1919) : const Color(0xFFFEF2F2),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFECACA)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.error_outline, size: 18, color: Color(0xFFDC2626)),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _priceError ?? 'Failed to load membership pricing.',
-                                      style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B)),
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(height: 6),
+                            Text(
+                              '$daysToExam days',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                                fontFamily: 'Outfit',
                               ),
-                              const SizedBox(height: 10),
-                              OutlinedButton.icon(
-                                onPressed: _fetchPrice,
-                                icon: const Icon(Icons.refresh, size: 16),
-                                label: const Text('Retry Loading Price'),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'until your IELTS exam on ${DateFormat.yMMMMd().format(_selectedExamDate!)}',
+                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // Profile info form card
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Form(
+                        key: _profileFormKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text('Edit Profile details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+                            const SizedBox(height: 20),
+                            
+                            // Full name input
+                            TextFormField(
+                              controller: _nameController,
+                              style: TextStyle(color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
+                              decoration: const InputDecoration(
+                                labelText: 'Full Name',
+                                prefixIcon: Icon(Icons.person_outline),
+                              ),
+                              validator: (val) => val == null || val.trim().isEmpty ? 'Full name is required' : null,
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Phone input
+                            TextFormField(
+                              controller: _phoneController,
+                              style: TextStyle(color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
+                              decoration: const InputDecoration(
+                                labelText: 'Phone (for payments)',
+                                prefixIcon: Icon(Icons.phone_outlined),
+                                hintText: '+2547...',
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Exam Date Picker field
+                            InkWell(
+                              onTap: _selectExamDate,
+                              borderRadius: BorderRadius.circular(10),
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'Exam Date',
+                                  prefixIcon: Icon(Icons.calendar_today_outlined),
+                                ),
+                                child: Text(
+                                  _selectedExamDate != null 
+                                      ? DateFormat.yMMMMd().format(_selectedExamDate!) 
+                                      : 'Select exam date...',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _selectedExamDate != null 
+                                        ? (isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight) 
+                                        : (isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            ElevatedButton(
+                              onPressed: _isSavingProfile ? null : _saveProfile,
+                              child: _isSavingProfile
+                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                  : const Text('Save changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Change password card
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Form(
+                        key: _passwordFormKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text('Change password', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _passwordController,
+                              obscureText: true,
+                              style: TextStyle(color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
+                              decoration: const InputDecoration(
+                                labelText: 'New Password',
+                                prefixIcon: Icon(Icons.lock_outlined),
+                              ),
+                              validator: (val) {
+                                if (val == null || val.isEmpty) return 'Password is required';
+                                if (val.length < 6) return 'Password must be at least 6 characters';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 18),
+                            ElevatedButton(
+                              onPressed: _isUpdatingPassword ? null : _changePassword,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                                side: BorderSide(color: isDark ? Colors.grey[700]! : const Color(0xFFD1D5DB)),
+                                shadowColor: Colors.transparent,
+                              ),
+                              child: _isUpdatingPassword
+                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const Text('Update password', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Membership status and Upgrade card
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text('Membership Access Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Icon(
+                                profile?.isPaid == true ? Icons.check_circle_outline : Icons.lock_outline,
+                                color: profile?.isPaid == true ? Colors.green : (isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  profile?.isPaid == true
+                                      ? 'You have full unlocked access to all tests.'
+                                      : 'You have access to free tests only.',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Privacy Policy & Legal Card
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.privacy_tip_outlined),
-                title: const Text('Privacy Policy', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/privacy-policy'),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Danger zone card
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: const BorderSide(color: Colors.red, width: 1),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Danger Zone', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.red)),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Deleting your account will remove all your statistics, profile details, and test attempts from our databases. This action is permanent and cannot be undone.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+                          if (profile?.isPaid != true) ...[
+                            Divider(height: 32, color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB)),
+                            Text(
+                              'Unlock all practice units and detailed analytics with a one-time premium membership.',
+                              style: TextStyle(fontSize: 13, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, height: 1.4, fontWeight: FontWeight.w500),
+                            ),
+                            const SizedBox(height: 16),
+                            if (_isLoadingPrice)
+                              const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()))
+                            else if (_price != null) ...[
+                              Text(
+                                'KSH ${_price!.toStringAsFixed(0)} One-time Payment',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _isInitiatingPayment ? null : _initiatePayment,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green[600],
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                child: _isInitiatingPayment
+                                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                    : const Text('Upgrade via M-Pesa STK Push', style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Ensure your phone number is correct above.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 11, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontWeight: FontWeight.w500),
+                              ),
+                            ] else ...[
+                              Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF3F1919) : const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFECACA)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.error_outline, size: 18, color: Color(0xFFDC2626)),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            _priceError ?? 'Failed to load membership pricing.',
+                                            style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B), fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    OutlinedButton.icon(
+                                      onPressed: _fetchPrice,
+                                      icon: const Icon(Icons.refresh, size: 16),
+                                      label: const Text('Retry Loading Price'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _deleteAccount,
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                      child: const Text('Delete My Account'),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Privacy Policy & Legal Card
+                  Card(
+                    child: ListTile(
+                      leading: Icon(Icons.privacy_tip_outlined, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                      title: Text('Privacy Policy', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+                      trailing: Icon(Icons.chevron_right, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
+                      onTap: () => context.push('/privacy-policy'),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Danger zone card
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: Colors.red, width: 1),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Danger Zone', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red)),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Deleting your account will remove all your statistics, profile details, and test attempts from our databases. This action is permanent and cannot be undone.',
+                            style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, height: 1.4, fontWeight: FontWeight.w500),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _deleteAccount,
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                            child: const Text('Delete My Account', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
     );
   }
 
@@ -579,18 +596,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(Icons.account_circle_outlined, size: 80, color: Colors.grey[400]),
+          Icon(Icons.account_circle_outlined, size: 80, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Personalize Your Experience',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
           ),
           const SizedBox(height: 12),
           Text(
             'Sign in to track your progress, save your test history, and unlock premium features.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+            style: TextStyle(fontSize: 14, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 32),
           ElevatedButton(

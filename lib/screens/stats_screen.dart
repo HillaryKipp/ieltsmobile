@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -36,7 +37,6 @@ class _StatsScreenState extends State<StatsScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final auth = Provider.of<AuthState>(context);
-    // If auth finished loading and we haven't loaded data yet, load it.
     if (!auth.isLoading && auth.user != null && !_hasLoadedOnce && !_isLoading) {
       _loadStatsData();
     }
@@ -95,9 +95,18 @@ class _StatsScreenState extends State<StatsScreen> {
     final auth = Provider.of<AuthState>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final appBarOverlay = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+    );
+
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Statistics', style: TextStyle(fontWeight: FontWeight.bold))),
+        appBar: AppBar(
+          systemOverlayStyle: appBarOverlay,
+          title: Text('Statistics', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -105,10 +114,11 @@ class _StatsScreenState extends State<StatsScreen> {
     if (auth.user == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Your Statistics', style: TextStyle(fontWeight: FontWeight.bold)),
+          systemOverlayStyle: appBarOverlay,
+          title: Text('Your Statistics', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
           centerTitle: true,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: Icon(Icons.arrow_back, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
             onPressed: () => context.go('/'),
           ),
         ),
@@ -118,7 +128,10 @@ class _StatsScreenState extends State<StatsScreen> {
 
     if (_errorMessage != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Statistics', style: TextStyle(fontWeight: FontWeight.bold))),
+        appBar: AppBar(
+          systemOverlayStyle: appBarOverlay,
+          title: Text('Statistics', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+        ),
         body: ErrorView(
           error: _errorMessage,
           title: 'Failed to Load Statistics',
@@ -175,10 +188,11 @@ class _StatsScreenState extends State<StatsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your Statistics', style: TextStyle(fontWeight: FontWeight.bold)),
+        systemOverlayStyle: appBarOverlay,
+        title: Text('Your Statistics', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
           onPressed: () => context.go('/'),
         ),
       ),
@@ -214,13 +228,13 @@ class _StatsScreenState extends State<StatsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Band score trend', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text('Band score trend', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
                       const SizedBox(height: 24),
                       _history.isEmpty
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 160,
                               child: Center(
-                                child: Text('No historical score data. Start practicing to generate charts!', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                child: Text('No historical score data. Start practicing to generate charts!', style: TextStyle(color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontSize: 13, fontWeight: FontWeight.w500)),
                               ),
                             )
                           : SizedBox(
@@ -237,7 +251,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                         interval: 2,
                                         getTitlesWidget: (val, meta) => Text(
                                           val.toStringAsFixed(0),
-                                          style: const TextStyle(color: Colors.grey, fontSize: 10),
+                                          style: TextStyle(color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontSize: 11, fontWeight: FontWeight.bold),
                                         ),
                                       ),
                                     ),
@@ -252,7 +266,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                                 padding: const EdgeInsets.only(top: 6.0),
                                                 child: Text(
                                                   DateFormat('Md').format(_history[idx].recordedAt),
-                                                  style: const TextStyle(color: Colors.grey, fontSize: 9),
+                                                  style: TextStyle(color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontSize: 10, fontWeight: FontWeight.w600),
                                                 ),
                                               );
                                             }
@@ -298,7 +312,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Skill breakdown', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text('Skill breakdown', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
                       const SizedBox(height: 16),
                       ...['listening', 'reading', 'writing', 'speaking'].map((s) {
                         final val = skillBandsPercent(skillAverages[s] ?? 0.0);
@@ -313,18 +327,18 @@ class _StatsScreenState extends State<StatsScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                  Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
                                   Text(
                                     skillAverages[s]! > 0 ? skillAverages[s]!.toStringAsFixed(1) : '—',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: cfg.primary),
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: cfg.primary),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               LinearProgressIndicator(
                                 value: val,
                                 color: cfg.primary,
-                                backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+                                backgroundColor: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE5E7EB),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                             ],
@@ -348,12 +362,12 @@ class _StatsScreenState extends State<StatsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Weakest question types', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text('Weakest question types', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
                             const SizedBox(height: 12),
                             weakest.isEmpty
-                                ? const Text('Take a Listening or Reading practice test.', style: TextStyle(color: Colors.grey, fontSize: 11))
+                                ? Text('Take a Listening or Reading practice test.', style: TextStyle(color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontSize: 11, fontWeight: FontWeight.w500))
                                 : Column(
-                                    children: weakest.map((stat) => _buildStatRow(stat.label, stat.pct, isWeak: true)).toList(),
+                                    children: weakest.map((stat) => _buildStatRow(stat.label, stat.pct, isWeak: true, isDark: isDark)).toList(),
                                   ),
                           ],
                         ),
@@ -368,12 +382,12 @@ class _StatsScreenState extends State<StatsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Strongest question types', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text('Strongest question types', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
                             const SizedBox(height: 12),
                             strongest.isEmpty
-                                ? const Text('Take a Listening or Reading practice test.', style: TextStyle(color: Colors.grey, fontSize: 11))
+                                ? Text('Take a Listening or Reading practice test.', style: TextStyle(color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontSize: 11, fontWeight: FontWeight.w500))
                                 : Column(
-                                    children: strongest.map((stat) => _buildStatRow(stat.label, stat.pct, isWeak: false)).toList(),
+                                    children: strongest.map((stat) => _buildStatRow(stat.label, stat.pct, isWeak: false, isDark: isDark)).toList(),
                                   ),
                           ],
                         ),
@@ -391,12 +405,12 @@ class _StatsScreenState extends State<StatsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Speaking confidence over time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text('Speaking confidence over time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
                       const SizedBox(height: 12),
                       speakingHistoryList.isEmpty
-                          ? const Text(
+                          ? Text(
                               'Complete a Speaking practice unit to see your confidence logs.',
-                              style: TextStyle(color: Colors.grey, fontSize: 12),
+                              style: TextStyle(color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontSize: 13, fontWeight: FontWeight.w500),
                             )
                           : ListView.builder(
                               shrinkWrap: true,
@@ -410,7 +424,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(formattedDate, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                      Text(formattedDate, style: TextStyle(fontSize: 12, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontWeight: FontWeight.w600)),
                                       Text(
                                         h.confidence ?? '',
                                         style: TextStyle(
@@ -450,7 +464,7 @@ class _StatsScreenState extends State<StatsScreen> {
         color: isDark ? const Color(0xFF1E1E24) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB),
+          color: isDark ? Colors.white.withOpacity(0.12) : const Color(0xFFE5E7EB),
         ),
       ),
       child: Column(
@@ -462,7 +476,7 @@ class _StatsScreenState extends State<StatsScreen> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: isDark ? Colors.grey[400] : Colors.grey[600],
+              color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
             ),
           ),
           const SizedBox(height: 4),
@@ -471,6 +485,7 @@ class _StatsScreenState extends State<StatsScreen> {
             style: GoogleFonts.outfit(
               fontSize: 24,
               fontWeight: FontWeight.w800,
+              color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
             ),
           ),
         ],
@@ -478,7 +493,7 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
-  Widget _buildStatRow(String label, int pct, {required bool isWeak}) {
+  Widget _buildStatRow(String label, int pct, {required bool isWeak, required bool isDark}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
@@ -487,7 +502,7 @@ class _StatsScreenState extends State<StatsScreen> {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(fontSize: 11, overflow: TextOverflow.ellipsis),
+              style: TextStyle(fontSize: 11, overflow: TextOverflow.ellipsis, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight, fontWeight: FontWeight.w500),
               maxLines: 1,
             ),
           ),
@@ -512,18 +527,18 @@ class _StatsScreenState extends State<StatsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(Icons.bar_chart_outlined, size: 80, color: Colors.grey[400]),
+          Icon(Icons.bar_chart_outlined, size: 80, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Track Your Progress',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
           ),
           const SizedBox(height: 12),
           Text(
             'Sign in to see your detailed performance analytics and band score trends over time.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+            style: TextStyle(fontSize: 14, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 32),
           ElevatedButton(

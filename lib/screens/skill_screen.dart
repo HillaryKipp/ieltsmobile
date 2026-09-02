@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -39,15 +40,9 @@ class _SkillScreenState extends State<SkillScreen> {
   }
 
   @override
-  void dispose() {
-    super.dispose();
-  }
-
-  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final auth = Provider.of<AuthState>(context);
-    // If auth finished loading and we haven't loaded data yet, load it.
     if (!auth.isLoading && auth.user != null && !_hasLoadedOnce && !_isLoading) {
       _loadSkillData();
     }
@@ -115,17 +110,26 @@ class _SkillScreenState extends State<SkillScreen> {
     final cfg = AppTheme.skills[widget.skill]!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    // Check if everything is unlocked
     final isUnlocked = auth.user != null && (auth.isAdmin || (auth.profile?.isPaid ?? false));
-
-    // Filter units
     final allUnits = _units;
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+          statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        ),
         title: Text(
           cfg.label.toUpperCase(),
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 1.2),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            letterSpacing: 1.2,
+            color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+          ),
         ),
         centerTitle: true,
         actions: [
@@ -138,7 +142,7 @@ class _SkillScreenState extends State<SkillScreen> {
                   context.push('/privacy-policy');
                 }
               },
-              icon: const Icon(Icons.account_circle_outlined),
+              icon: Icon(Icons.account_circle_outlined, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
               offset: const Offset(0, 45),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               itemBuilder: (context) => [
@@ -166,7 +170,7 @@ class _SkillScreenState extends State<SkillScreen> {
             )
           else
             IconButton(
-              icon: const Icon(Icons.login),
+              icon: Icon(Icons.login, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight),
               onPressed: () => context.go('/auth'),
             ),
         ],
@@ -190,7 +194,7 @@ class _SkillScreenState extends State<SkillScreen> {
                           decoration: BoxDecoration(
                             color: cfg.soft,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: cfg.primary.withOpacity(0.1)),
+                            border: Border.all(color: cfg.primary.withOpacity(0.15)),
                           ),
                           child: Row(
                             children: [
@@ -212,8 +216,8 @@ class _SkillScreenState extends State<SkillScreen> {
                                       cfg.tagline,
                                       style: TextStyle(
                                         fontSize: 14,
-                                        color: cfg.foreground.withOpacity(0.85),
-                                        fontWeight: FontWeight.w500,
+                                        color: cfg.foreground,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ],
@@ -234,7 +238,7 @@ class _SkillScreenState extends State<SkillScreen> {
                           style: GoogleFonts.outfit(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.grey[800],
+                            color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
                           ),
                         ),
                       ),
@@ -255,17 +259,25 @@ class _SkillScreenState extends State<SkillScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(cfg.icon, size: 48, color: Colors.grey[400]),
+                Icon(cfg.icon, size: 48, color: isDark ? AppTheme.textMutedDark : AppTheme.textMutedLight),
                 const SizedBox(height: 16),
                 Text(
                   'No tests found in this category.',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Check back later for updates.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -291,7 +303,7 @@ class _SkillScreenState extends State<SkillScreen> {
                 color: isDark ? const Color(0xFF1E1E24) : Colors.white,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB),
+                  color: isDark ? Colors.white.withOpacity(0.12) : const Color(0xFFE5E7EB),
                 ),
               ),
               child: Row(
@@ -326,7 +338,11 @@ class _SkillScreenState extends State<SkillScreen> {
                             Flexible(
                               child: Text(
                                 unit.title,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                                ),
                               ),
                             ),
                             if (unit.isFree) ...[
@@ -334,7 +350,7 @@ class _SkillScreenState extends State<SkillScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: isDark ? Colors.grey[800] : Colors.grey[200],
+                                  color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE5E7EB),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -342,7 +358,7 @@ class _SkillScreenState extends State<SkillScreen> {
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.grey[300] : Colors.grey[600],
+                                    color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
                                   ),
                                 ),
                               ),
@@ -353,7 +369,11 @@ class _SkillScreenState extends State<SkillScreen> {
                           const SizedBox(height: 4),
                           Text(
                             unit.description!,
-                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            style: TextStyle(
+                              color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -379,73 +399,73 @@ class _SkillScreenState extends State<SkillScreen> {
                           fontWeight: FontWeight.bold,
                           color: cfg.foreground,
                           fontSize: 13,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                  ],
 
-              // Action button (Play, Lock, or Upgrade)
-              isAccessible
-                  ? InkWell(
-                      onTap: () => context.go('/units/${unit.id}'),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: cfg.primary,
+                  // Action button (Play, Lock, or Upgrade)
+                  isAccessible
+                      ? InkWell(
+                          onTap: () => context.go('/units/${unit.id}'),
                           borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              hasScore ? Icons.refresh_outlined : Icons.play_arrow_outlined, 
-                              color: Colors.white, 
-                              size: 16
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: cfg.primary,
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              hasScore ? 'Retry' : 'Start',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  hasScore ? Icons.refresh_outlined : Icons.play_arrow_outlined, 
+                                  color: Colors.white, 
+                                  size: 16
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  hasScore ? 'Retry' : 'Start',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : InkWell(
-                      onTap: () => context.go('/profile'),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
+                          ),
+                        )
+                      : InkWell(
+                          onTap: () => context.go('/profile'),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: isDark ? Colors.grey[700]! : const Color(0xFFD1D5DB)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.lock_outline, color: isDark ? Colors.grey[400] : Colors.grey[600], size: 14),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Upgrade',
-                              style: TextStyle(
-                                color: isDark ? Colors.grey[300] : Colors.grey[700],
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: isDark ? Colors.grey[700]! : const Color(0xFFD1D5DB)),
                             ),
-                          ],
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.lock_outline, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Upgrade',
+                                  style: TextStyle(
+                                    color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-            ],
-          ),
-        );
-      },
-      childCount: units.length,
-    ),
-  ),
-);
-}
+                ],
+              ),
+            );
+          },
+          childCount: units.length,
+        ),
+      ),
+    );
+  }
 }

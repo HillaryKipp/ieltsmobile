@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../auth_state.dart';
@@ -60,15 +61,25 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
     final auth = Provider.of<AuthState>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final appBarOverlay = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+    );
+
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        appBar: AppBar(systemOverlayStyle: appBarOverlay),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_errorMessage != null || _unit == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Unit Overview')),
+        appBar: AppBar(
+          systemOverlayStyle: appBarOverlay,
+          title: Text('Unit Overview', style: TextStyle(color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight, fontWeight: FontWeight.bold)),
+        ),
         body: ErrorView(
           error: _errorMessage,
           title: 'Failed to Load Unit Details',
@@ -93,9 +104,10 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(unit.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        systemOverlayStyle: appBarOverlay,
+        title: Text(unit.title, style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
           onPressed: () => context.go('/skills/${unit.skill}'),
         ),
       ),
@@ -109,7 +121,7 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
               color: cfg.soft,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: cfg.primary.withOpacity(0.1)),
+                side: BorderSide(color: cfg.primary.withOpacity(0.15)),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
@@ -142,8 +154,8 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
                             unit.isFree ? 'Free Access Practice Unit' : 'Premium IELTS Academic Test',
                             style: TextStyle(
                               fontSize: 12,
-                              color: cfg.foreground.withOpacity(0.8),
-                              fontWeight: FontWeight.w500,
+                              color: cfg.foreground,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -162,17 +174,17 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Practice Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('Practice Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
                     const SizedBox(height: 16),
                     _buildInfoRow(Icons.timer_outlined, 'Estimated Duration', durationText, isDark),
-                    const Divider(height: 24),
+                    Divider(height: 24, color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB)),
                     _buildInfoRow(
                       Icons.question_answer_outlined, 
                       'Total Questions', 
                       _questionCount > 0 ? '$_questionCount questions' : 'Varies by section', 
                       isDark
                     ),
-                    const Divider(height: 24),
+                    Divider(height: 24, color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB)),
                     _buildInfoRow(
                       Icons.bar_chart_outlined, 
                       'Scoring System', 
@@ -186,13 +198,14 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
             const SizedBox(height: 24),
 
             // Description or guidelines
-            const Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E1E24) : const Color(0xFFF3F4F6),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE5E7EB)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,7 +254,7 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
-                      foregroundColor: isDark ? Colors.white : Colors.black87,
+                      foregroundColor: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
                       shadowColor: Colors.transparent,
                       side: BorderSide(color: isDark ? Colors.grey[700]! : const Color(0xFFD1D5DB)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -264,7 +277,7 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
   Widget _buildInfoRow(IconData icon, String title, String subtitle, bool isDark) {
     return Row(
       children: [
-        Icon(icon, color: isDark ? Colors.grey[400] : Colors.grey[600], size: 20),
+        Icon(icon, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, size: 20),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
@@ -273,16 +286,18 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
               Text(
                 title,
                 style: TextStyle(
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
                   fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
+                  color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
                 ),
               ),
             ],
@@ -302,7 +317,7 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
             height: 6,
             width: 6,
             decoration: BoxDecoration(
-              color: isDark ? Colors.white70 : Colors.black54,
+              color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
               shape: BoxShape.circle,
             ),
           ),
@@ -312,7 +327,8 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
             text,
             style: TextStyle(
               fontSize: 13,
-              color: isDark ? Colors.grey[300] : Colors.grey[800],
+              fontWeight: FontWeight.w500,
+              color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight,
             ),
           ),
         ),
