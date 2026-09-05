@@ -50,23 +50,28 @@ class AuthState extends ChangeNotifier {
     // Listen to Supabase auth changes
     _authSubscription = supabase.auth.onAuthStateChange.listen((data) async {
       try {
+        debugPrint('[SUPABASE/AUTH] Auth event: ${data.event} | Session user: ${data.session?.user.id ?? "none"}');
         _user = data.session?.user ?? supabase.auth.currentUser;
         if (data.event == AuthChangeEvent.passwordRecovery) {
+          debugPrint('[SUPABASE/AUTH] Password recovery event detected -> enabling reset password flag');
           _resetPasswordRequired = true;
         } else if (data.event == AuthChangeEvent.signedIn) {
+          debugPrint('[SUPABASE/AUTH] Signed in event detected -> clearing reset password flag');
           _resetPasswordRequired = false;
         }
 
         if (_user != null) {
+          debugPrint('[SUPABASE/AUTH] Active user identified: ${_user!.id} (${_user!.email})');
           await _fetchProfileAndRole();
         } else {
+          debugPrint('[SUPABASE/AUTH] No active user session');
           _profile = null;
           _isAdmin = false;
           _profileError = null;
           _resetPasswordRequired = false;
         }
       } catch (e) {
-        debugPrint('Auth listener error: $e');
+        debugPrint('[SUPABASE/AUTH] Auth listener error: $e');
         _authError = e.toString();
       } finally {
         _isLoading = false;
@@ -76,9 +81,10 @@ class AuthState extends ChangeNotifier {
 
     // Listen to deep links
     _linkSubscription = _appLinks.uriLinkStream.listen((uri) async {
+      debugPrint('[DEEP_LINK] Stream received URI: $uri');
       await _handleIncomingLink(uri);
     }, onError: (err) {
-      debugPrint('Deep Link Error: $err');
+      debugPrint('[DEEP_LINK] Stream error: $err');
       _authError = 'Error processing authentication link: $err';
       notifyListeners();
     });
@@ -86,6 +92,7 @@ class AuthState extends ChangeNotifier {
     // Handle initial link if app was closed
     _appLinks.getInitialLink().then((uri) async {
       if (uri != null) {
+        debugPrint('[DEEP_LINK] Initial launch URI: $uri');
         await _handleIncomingLink(uri);
       }
     });
@@ -93,11 +100,13 @@ class AuthState extends ChangeNotifier {
 
   Future<void> _handleIncomingLink(Uri uri) async {
     try {
-      debugPrint('Incoming deep link: $uri');
+      debugPrint('[DEEP_LINK] Processing link: $uri (query: ${uri.queryParameters}, fragment: ${uri.fragment})');
       
       // Exchange code for session using PKCE
       if (uri.queryParameters.containsKey('code') || uri.fragment.contains('code=')) {
+        debugPrint('[DEEP_LINK] Exchanging authorization code for session via PKCE');
         await supabase.auth.getSessionFromUrl(uri);
+        debugPrint('[DEEP_LINK] Successfully exchanged code for session');
       }
 
       // Check if this is a password recovery flow
@@ -105,11 +114,12 @@ class AuthState extends ChangeNotifier {
                          uri.fragment.contains('type=recovery');
       
       if (isRecovery) {
+        debugPrint('[DEEP_LINK] Link matches password recovery flow');
         _resetPasswordRequired = true;
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Error handling deep link: $e');
+      debugPrint('[DEEP_LINK] Error handling deep link: $e');
       _authError = 'Failed to authenticate via link: ${e.toString()}';
       notifyListeners();
     }
@@ -119,11 +129,15 @@ class AuthState extends ChangeNotifier {
     if (_user == null) return;
     try {
       final uid = _user!.id;
+      debugPrint('[SUPABASE/DB] Fetching profile & role for user: $uid');
       
       // Fetch profile
       final res = await supabase.from('profiles').select().eq('id', uid).maybeSingle();
       if (res != null) {
         _profile = Profile.fromJson(res);
+        debugPrint('[SUPABASE/DB] Profile loaded: name="${_profile?.fullName}", paid=${_profile?.isPaid}, phone="${_profile?.phone}"');
+      } else {
+        debugPrint('[SUPABASE/DB] No existing profile row found for user: $uid');
       }
 
       // Fetch admin role
@@ -132,15 +146,17 @@ class AuthState extends ChangeNotifier {
         '_role': 'admin',
       });
       _isAdmin = adminRes as bool? ?? false;
+      debugPrint('[SUPABASE/DB] Role check complete: isAdmin=$_isAdmin');
       _profileError = null;
     } catch (e) {
-      debugPrint('Error fetching profile/role: $e');
+      debugPrint('[SUPABASE/DB] Error fetching profile/role: $e');
       _profileError = 'Unable to fetch your user profile: $e';
     }
   }
 
   Future<void> refreshProfile() async {
     if (_user == null) return;
+    debugPrint('[SUPABASE/DB] Refreshing profile data for: ${_user!.id}');
     await _fetchProfileAndRole();
     notifyListeners();
   }
@@ -152,25 +168,33 @@ class AuthState extends ChangeNotifier {
       'phone': phone,
       'exam_date': examDate?.toIso8601String().substring(0, 10),
     };
+    debugPrint('[SUPABASE/DB] Updating profile for ${_user!.id}: $updateData');
     
     await supabase.from('profiles').update(updateData).eq('id', _user!.id);
+    debugPrint('[SUPABASE/DB] Profile successfully updated');
     await refreshProfile();
   }
 
   Future<void> signUp({required String email, required String password, required String fullName}) async {
+    debugPrint('[SUPABASE/AUTH] signUp requested: email=$email, fullName=$fullName');
     _isLoading = true;
     _authError = null;
     _resetPasswordRequired = false;
     notifyListeners();
     try {
-      await supabase.auth.signUp(
+      final res = await supabase.auth.signUp(
         email: email,
         password: password,
         data: {'full_name': fullName},
         emailRedirectTo: Env.authRedirect,
       );
+      debugPrint('[SUPABASE/AUTH] signUp response: user=${res.user?.id}, session=${res.session != null ? "active" : "unconfirmed"}');
+      _user = res.user ?? supabase.auth.currentUser;
+      if (_user != null) {
+        await _fetchProfileAndRole();
+      }
     } catch (e) {
-      debugPrint('SignUp Error: $e');
+      debugPrint('[SUPABASE/AUTH] SignUp Error: $e');
       _authError = ErrorUtils.getFriendlyMessage(e);
       rethrow;
     } finally {
@@ -180,14 +204,19 @@ class AuthState extends ChangeNotifier {
   }
 
   Future<void> signIn({required String email, required String password}) async {
+    debugPrint('[SUPABASE/AUTH] signIn requested: email=$email');
     _isLoading = true;
     _authError = null;
     _resetPasswordRequired = false;
     notifyListeners();
     try {
-      await supabase.auth.signInWithPassword(email: email, password: password);
+      final res = await supabase.auth.signInWithPassword(email: email, password: password);
+      debugPrint('[SUPABASE/AUTH] signIn success: userId=${res.user?.id}, email=${res.user?.email}');
+      _user = res.user;
+      await _fetchProfileAndRole();
+      debugPrint('[SUPABASE/AUTH] Session ready: user=${_user?.id}, role isAdmin=$_isAdmin');
     } catch (e) {
-      debugPrint('SignIn Error: $e');
+      debugPrint('[SUPABASE/AUTH] SignIn Error: $e');
       _authError = ErrorUtils.getFriendlyMessage(e);
       rethrow;
     } finally {
@@ -197,13 +226,14 @@ class AuthState extends ChangeNotifier {
   }
 
   Future<void> signInWithGoogle() async {
+    debugPrint('[SUPABASE/AUTH] signInWithGoogle requested');
     _isLoading = true;
     _authError = null;
     _resetPasswordRequired = false;
     notifyListeners();
     try {
       // 1. Native Google Sign-In for Android/iOS
-      const webClientId = 'YOUR_WEB_CLIENT_ID_FOR_GOOGLE_SIGN_IN'; // Usually optional but good to have
+      const webClientId = 'YOUR_WEB_CLIENT_ID_FOR_GOOGLE_SIGN_IN';
       const iosClientId = 'YOUR_IOS_CLIENT_ID_FOR_GOOGLE_SIGN_IN';
 
       final GoogleSignIn googleSignIn = GoogleSignIn(
@@ -213,9 +243,10 @@ class AuthState extends ChangeNotifier {
       
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
+        debugPrint('[SUPABASE/AUTH] Google sign in was cancelled by user');
         _isLoading = false;
         notifyListeners();
-        return; // User cancelled
+        return;
       }
 
       final googleAuth = await googleUser.authentication;
@@ -226,13 +257,17 @@ class AuthState extends ChangeNotifier {
         throw 'No ID Token found.';
       }
 
-      await supabase.auth.signInWithIdToken(
+      debugPrint('[SUPABASE/AUTH] Google ID token obtained, signing in with Supabase');
+      final res = await supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
+      debugPrint('[SUPABASE/AUTH] Google sign-in success: userId=${res.user?.id}');
+      _user = res.user;
+      await _fetchProfileAndRole();
     } catch (e) {
-      debugPrint('Google Sign-In Error: $e');
+      debugPrint('[SUPABASE/AUTH] Google Sign-In Native Error: $e -> Trying OAuth fallback');
       
       // Fallback to OAuth if native fails or for web
       try {
@@ -242,6 +277,7 @@ class AuthState extends ChangeNotifier {
           authScreenLaunchMode: LaunchMode.externalApplication,
         );
       } catch (inner) {
+        debugPrint('[SUPABASE/AUTH] Google OAuth Fallback Error: $inner');
         _authError = ErrorUtils.getFriendlyMessage(inner);
         rethrow;
       }
@@ -252,25 +288,29 @@ class AuthState extends ChangeNotifier {
   }
 
   Future<void> sendPasswordResetEmail({required String email}) async {
+    debugPrint('[SUPABASE/AUTH] sendPasswordResetEmail requested: email=$email');
     _authError = null;
     notifyListeners();
     try {
       await supabase.auth.resetPasswordForEmail(email, redirectTo: Env.authRedirect);
+      debugPrint('[SUPABASE/AUTH] Password reset email dispatched');
     } catch (e) {
-      debugPrint('Reset Password Email Error: $e');
+      debugPrint('[SUPABASE/AUTH] Reset Password Email Error: $e');
       _authError = ErrorUtils.getFriendlyMessage(e);
       rethrow;
     }
   }
 
   Future<void> updatePassword(String newPassword) async {
+    debugPrint('[SUPABASE/AUTH] updatePassword requested for user: ${_user?.id}');
     _authError = null;
     notifyListeners();
     try {
       await supabase.auth.updateUser(UserAttributes(password: newPassword));
+      debugPrint('[SUPABASE/AUTH] Password updated successfully');
       clearResetPasswordRequired();
     } catch (e) {
-      debugPrint('Update Password Error: $e');
+      debugPrint('[SUPABASE/AUTH] Update Password Error: $e');
       _authError = ErrorUtils.getFriendlyMessage(e);
       rethrow;
     }
@@ -280,6 +320,7 @@ class AuthState extends ChangeNotifier {
     final session = supabase.auth.currentSession;
     if (session == null) throw Exception('No active session. Please sign in.');
 
+    debugPrint('[SERVER/MPESA] Initiating STK Push: url=${Env.webOrigin}/api/public/mpesa/initiate, phone=$phone');
     final response = await http.post(
       Uri.parse('${Env.webOrigin}/api/public/mpesa/initiate'),
       headers: {
@@ -289,6 +330,7 @@ class AuthState extends ChangeNotifier {
       body: jsonEncode({'phone': phone}),
     );
 
+    debugPrint('[SERVER/MPESA] Response: status=${response.statusCode}, body=${response.body}');
     if (response.statusCode != 200) {
       String errorMessage = response.body;
       try {
@@ -304,21 +346,26 @@ class AuthState extends ChangeNotifier {
   }
 
   void clearResetPasswordRequired() {
+    debugPrint('[SUPABASE/AUTH] clearResetPasswordRequired invoked');
     _resetPasswordRequired = false;
     notifyListeners();
   }
 
   Future<void> deleteAccount() async {
     if (_user == null) return;
+    debugPrint('[SUPABASE/AUTH] deleteAccount invoked for user: ${_user!.id}');
     // Perform soft delete by removing profile rows (as RLS enables delete for self or admin)
     await supabase.from('profiles').delete().eq('id', _user!.id);
+    debugPrint('[SUPABASE/AUTH] Profile records deleted');
     await signOut();
   }
 
   Future<void> signOut() async {
+    debugPrint('[SUPABASE/AUTH] signOut requested');
     _isLoading = true;
     notifyListeners();
     await supabase.auth.signOut();
+    debugPrint('[SUPABASE/AUTH] Supabase signOut completed');
     _user = null;
     _profile = null;
     _isAdmin = false;

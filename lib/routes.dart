@@ -153,35 +153,39 @@ GoRouter createRouter(AuthState authState) {
       if (authState.isLoading) return null;
 
       final isLoggedIn = authState.user != null;
-      final onAuthPage = state.matchedLocation == '/auth';
-      final onResetPage = state.matchedLocation == '/reset-password';
+      final onAuthPage = state.matchedLocation.startsWith('/auth');
+      final onResetPage = state.matchedLocation.startsWith('/reset-password');
       final onAdminPage = state.matchedLocation.startsWith('/admin');
-      final onPrivacyPage = state.matchedLocation == '/privacy-policy';
+      final onPrivacyPage = state.matchedLocation.startsWith('/privacy-policy');
       
       // Public routes that don't need auth
       final isPublicRoute = onAuthPage || onResetPage || onPrivacyPage || state.matchedLocation == '/';
 
       if (onAdminPage && !authState.isAdmin) {
+        debugPrint('[ROUTER] Access denied: non-admin attempted to visit /admin -> redirecting to /');
         return '/';
       }
 
       if (isLoggedIn) {
         if (authState.resetPasswordRequired && !onResetPage) {
+          debugPrint('[ROUTER] Password recovery active -> redirecting to /reset-password');
           return '/reset-password';
         }
         if (onAuthPage) {
+          debugPrint('[ROUTER] Logged-in user on /auth -> redirecting to /');
           return '/';
         }
       } else {
         // If not logged in and trying to access a protected route
         if (!isPublicRoute && !state.matchedLocation.startsWith('/skills/')) {
-           // Allow viewing skills as guest, but maybe protect practice/stats
            if (state.matchedLocation == '/profile' || state.matchedLocation == '/stats') {
+             debugPrint('[ROUTER] Guest attempted to visit protected route ${state.matchedLocation} -> redirecting to /auth');
              return '/auth';
            }
         }
       }
 
+      debugPrint('[ROUTER] Navigating to: ${state.matchedLocation} (user: ${authState.user?.id ?? "guest"})');
       return null;
     },
     errorBuilder: (context, state) => Scaffold(

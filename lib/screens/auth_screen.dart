@@ -25,6 +25,7 @@ class _AuthScreenState extends State<AuthScreen> {
   late bool _isSignUp;
   bool _obscurePassword = true;
   bool _rememberMe = true;
+  bool _hasSubmitted = false;
   String? _errorMessage;
 
   @override
@@ -64,11 +65,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _submit() async {
     TextInput.finishAutofillContext();
-    if (!_formKey.currentState!.validate()) return;
-    
     setState(() {
+      _hasSubmitted = true;
       _errorMessage = null;
     });
+
+    if (!_formKey.currentState!.validate()) return;
 
     final auth = Provider.of<AuthState>(context, listen: false);
     
@@ -80,10 +82,14 @@ class _AuthScreenState extends State<AuthScreen> {
           fullName: _nameController.text.trim(),
         );
         if (mounted) {
-          ErrorUtils.showSuccessSnackBar(
-            context,
-            'Verification email sent! Check your inbox to confirm your account.',
-          );
+          if (auth.user != null) {
+            context.go('/');
+          } else {
+            ErrorUtils.showSuccessSnackBar(
+              context,
+              'Verification email sent! Check your inbox to confirm your account.',
+            );
+          }
         }
       } else {
         await auth.signIn(
@@ -91,6 +97,10 @@ class _AuthScreenState extends State<AuthScreen> {
           password: _passwordController.text,
         );
         await _saveEmail();
+        if (mounted) {
+          debugPrint('[AUTH_UI] Sign in complete -> navigating to /');
+          context.go('/');
+        }
       }
     } catch (_) {
       // Error handled by AuthState and displayed via InlineErrorBanner
@@ -106,6 +116,10 @@ class _AuthScreenState extends State<AuthScreen> {
     
     try {
       await auth.signInWithGoogle();
+      if (mounted && auth.user != null) {
+        debugPrint('[AUTH_UI] Google sign in complete -> navigating to /');
+        context.go('/');
+      }
     } catch (_) {
       // Error handled by AuthState and displayed via InlineErrorBanner
     }
@@ -249,7 +263,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: AutofillGroup(
                       child: Form(
                         key: _formKey,
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        autovalidateMode: _hasSubmitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -270,8 +284,9 @@ class _AuthScreenState extends State<AuthScreen> {
                                   prefixIcon: Icon(Icons.person_outline),
                                 ),
                                 validator: (val) {
-                                  if (val == null || val.trim().isEmpty) return 'Full name is required';
-                                  if (val.trim().length < 2) return 'Enter your full name';
+                                  final text = (val != null && val.trim().isNotEmpty) ? val : _nameController.text;
+                                  if (text.trim().isEmpty) return 'Full name is required';
+                                  if (text.trim().length < 2) return 'Enter your full name';
                                   return null;
                                 },
                               ),
@@ -289,8 +304,9 @@ class _AuthScreenState extends State<AuthScreen> {
                                 prefixIcon: Icon(Icons.email_outlined),
                               ),
                               validator: (val) {
-                                if (val == null || val.trim().isEmpty) return 'Email is required';
-                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val.trim())) {
+                                final text = (val != null && val.trim().isNotEmpty) ? val : _emailController.text;
+                                if (text.trim().isEmpty) return 'Email is required';
+                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(text.trim())) {
                                   return 'Enter a valid email address';
                                 }
                                 return null;
@@ -324,8 +340,9 @@ class _AuthScreenState extends State<AuthScreen> {
                                 ),
                               ),
                               validator: (val) {
-                                if (val == null || val.isEmpty) return 'Password is required';
-                                if (val.length < 6) return 'Password must be at least 6 characters';
+                                final text = (val != null && val.isNotEmpty) ? val : _passwordController.text;
+                                if (text.isEmpty) return 'Password is required';
+                                if (text.length < 6) return 'Password must be at least 6 characters';
                                 return null;
                               },
                             ),
@@ -480,6 +497,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       onPressed: () {
                         setState(() {
                           _isSignUp = !_isSignUp;
+                          _hasSubmitted = false;
                           _errorMessage = null;
                         });
                       },
