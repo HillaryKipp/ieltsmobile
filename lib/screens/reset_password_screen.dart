@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../auth_state.dart';
@@ -29,6 +30,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   Future<void> _submit() async {
+    TextInput.finishAutofillContext();
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -38,7 +40,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     try {
       final auth = Provider.of<AuthState>(context, listen: false);
-      await auth.updatePassword(_passwordController.text.trim());
+      await auth.updatePassword(_passwordController.text);
       if (mounted) {
         ErrorUtils.showSuccessSnackBar(context, 'Password updated successfully!');
         context.go('/');
@@ -75,64 +77,69 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               shadowColor: Colors.black.withOpacity(0.05),
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Text(
-                        'Set New Password',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Please enter your new password below.',
-                        style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : Colors.grey[600]),
-                      ),
-                      const SizedBox(height: 24),
-                      
-                      // Password input
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'New Password',
-                          prefixIcon: const Icon(Icons.lock_outlined),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                              color: Colors.grey,
+                child: AutofillGroup(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Set New Password',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Please enter your new password below.',
+                          style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        // Password input
+                        TextFormField(
+                          controller: _passwordController,
+                          autofillHints: const [AutofillHints.newPassword],
+                          keyboardType: TextInputType.visiblePassword,
+                          obscureText: _obscurePassword,
+                          decoration: InputDecoration(
+                            labelText: 'New Password',
+                            prefixIcon: const Icon(Icons.lock_outlined),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
                           ),
+                          validator: (val) {
+                            if (val == null || val.isEmpty) return 'Password is required';
+                            if (val.length < 6) return 'Password must be at least 6 characters';
+                            return null;
+                          },
                         ),
-                        validator: (val) {
-                          if (val == null || val.isEmpty) return 'Password is required';
-                          if (val.length < 6) return 'Password must be at least 6 characters';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Confirm password input
-                      TextFormField(
-                        controller: _confirmController,
-                        obscureText: _obscurePassword,
-                        decoration: const InputDecoration(
-                          labelText: 'Confirm Password',
-                          prefixIcon: Icon(Icons.lock_clock_outlined),
+                        const SizedBox(height: 16),
+                        
+                        // Confirm password input
+                        TextFormField(
+                          controller: _confirmController,
+                          autofillHints: const [AutofillHints.newPassword],
+                          keyboardType: TextInputType.visiblePassword,
+                          obscureText: _obscurePassword,
+                          decoration: const InputDecoration(
+                            labelText: 'Confirm Password',
+                            prefixIcon: Icon(Icons.lock_clock_outlined),
+                          ),
+                          validator: (val) {
+                            if (val == null || val.isEmpty) return 'Please confirm your password';
+                            if (val != _passwordController.text) return 'Passwords do not match';
+                            return null;
+                          },
                         ),
-                        validator: (val) {
-                          if (val == null || val.isEmpty) return 'Please confirm your password';
-                          if (val != _passwordController.text) return 'Passwords do not match';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 24),
                       
                       if (_errorMessage != null || auth.authError != null) ...[
                         InlineErrorBanner(
@@ -175,6 +182,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

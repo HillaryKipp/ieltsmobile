@@ -243,13 +243,14 @@ class _SkillScreenState extends State<SkillScreen> {
                         ),
                       ),
                     ),
-                    _buildSliverTestList(allUnits, isUnlocked, cfg, isDark),
+                    _buildSliverTestList(allUnits, auth, cfg, isDark),
                   ],
                 ),
     );
   }
 
-  Widget _buildSliverTestList(List<Unit> units, bool isUnlocked, SkillTheme cfg, bool isDark) {
+  Widget _buildSliverTestList(List<Unit> units, AuthState auth, SkillTheme cfg, bool isDark) {
+    final isUnlocked = auth.user != null && (auth.isAdmin || (auth.profile?.isPaid ?? false));
     if (units.isEmpty) {
       return SliverFillRemaining(
         hasScrollBody: false,
@@ -432,33 +433,58 @@ class _SkillScreenState extends State<SkillScreen> {
                             ),
                           ),
                         )
-                      : InkWell(
-                          onTap: () => context.push('/profile'),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.transparent,
+                      : auth.user != null 
+                          ? InkWell(
+                              onTap: () => context.push('/upgrade'),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: isDark ? Colors.grey[700]! : const Color(0xFFD1D5DB)),
-                            ),
-                            child: Row(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: isDark ? Colors.grey[700]! : const Color(0xFFD1D5DB)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.lock_outline, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, size: 14),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Upgrade',
+                                      style: TextStyle(
+                                        color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.lock_outline, color: isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondaryLight, size: 14),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Upgrade',
-                                  style: TextStyle(
-                                    color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                                TextButton(
+                                  onPressed: () => context.push('/auth?mode=signin'),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   ),
+                                  child: const Text('Sign in', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                ),
+                                const Text('|', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                TextButton(
+                                  onPressed: () => context.push('/auth?mode=signup'),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: const Text('Create account', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),
-                          ),
-                        ),
                 ],
               ),
             );

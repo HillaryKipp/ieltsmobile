@@ -119,13 +119,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _changePassword() async {
+    TextInput.finishAutofillContext();
     if (!_passwordFormKey.currentState!.validate()) return;
 
     setState(() => _isUpdatingPassword = true);
 
     try {
       final auth = Provider.of<AuthState>(context, listen: false);
-      await auth.updatePassword(_passwordController.text.trim());
+      await auth.updatePassword(_passwordController.text);
       _passwordController.clear();
       if (mounted) {
         ErrorUtils.showSuccessSnackBar(context, 'Password updated successfully!');
@@ -401,41 +402,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(20.0),
-                      child: Form(
-                        key: _passwordFormKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text('Change password', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _passwordController,
-                              obscureText: true,
-                              style: TextStyle(color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
-                              decoration: const InputDecoration(
-                                labelText: 'New Password',
-                                prefixIcon: Icon(Icons.lock_outlined),
+                      child: AutofillGroup(
+                        child: Form(
+                          key: _passwordFormKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text('Change password', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight)),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: true,
+                                keyboardType: TextInputType.visiblePassword,
+                                autofillHints: const [AutofillHints.newPassword],
+                                style: TextStyle(color: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight),
+                                decoration: const InputDecoration(
+                                  labelText: 'New Password',
+                                  prefixIcon: Icon(Icons.lock_outlined),
+                                ),
+                                validator: (val) {
+                                  if (val == null || val.isEmpty) return 'Password is required';
+                                  if (val.length < 6) return 'Password must be at least 6 characters';
+                                  return null;
+                                },
                               ),
-                              validator: (val) {
-                                if (val == null || val.isEmpty) return 'Password is required';
-                                if (val.length < 6) return 'Password must be at least 6 characters';
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 18),
-                            ElevatedButton(
-                              onPressed: _isUpdatingPassword ? null : _changePassword,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                foregroundColor: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
-                                side: BorderSide(color: isDark ? Colors.grey[700]! : const Color(0xFFD1D5DB)),
-                                shadowColor: Colors.transparent,
+                              const SizedBox(height: 18),
+                              ElevatedButton(
+                                onPressed: _isUpdatingPassword ? null : _changePassword,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  foregroundColor: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                                  side: BorderSide(color: isDark ? Colors.grey[700]! : const Color(0xFFD1D5DB)),
+                                  shadowColor: Colors.transparent,
+                                ),
+                                child: _isUpdatingPassword
+                                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                    : const Text('Update password', style: TextStyle(fontWeight: FontWeight.bold)),
                               ),
-                              child: _isUpdatingPassword
-                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                                  : const Text('Update password', style: TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:app_links/app_links.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'config.dart';
@@ -50,12 +51,19 @@ class AuthState extends ChangeNotifier {
     _authSubscription = supabase.auth.onAuthStateChange.listen((data) async {
       try {
         _user = data.session?.user ?? supabase.auth.currentUser;
+        if (data.event == AuthChangeEvent.passwordRecovery) {
+          _resetPasswordRequired = true;
+        } else if (data.event == AuthChangeEvent.signedIn) {
+          _resetPasswordRequired = false;
+        }
+
         if (_user != null) {
           await _fetchProfileAndRole();
         } else {
           _profile = null;
           _isAdmin = false;
           _profileError = null;
+          _resetPasswordRequired = false;
         }
       } catch (e) {
         debugPrint('Auth listener error: $e');
@@ -94,8 +102,7 @@ class AuthState extends ChangeNotifier {
 
       // Check if this is a password recovery flow
       final isRecovery = uri.queryParameters['type'] == 'recovery' || 
-                         uri.fragment.contains('type=recovery') || 
-                         uri.toString().contains('recovery');
+                         uri.fragment.contains('type=recovery');
       
       if (isRecovery) {
         _resetPasswordRequired = true;
@@ -150,14 +157,16 @@ class AuthState extends ChangeNotifier {
     await refreshProfile();
   }
 
-  Future<void> signUp({required String email, required String password}) async {
+  Future<void> signUp({required String email, required String password, required String fullName}) async {
     _isLoading = true;
     _authError = null;
+    _resetPasswordRequired = false;
     notifyListeners();
     try {
       await supabase.auth.signUp(
         email: email,
         password: password,
+        data: {'full_name': fullName},
         emailRedirectTo: Env.authRedirect,
       );
     } catch (e) {
@@ -173,6 +182,7 @@ class AuthState extends ChangeNotifier {
   Future<void> signIn({required String email, required String password}) async {
     _isLoading = true;
     _authError = null;
+    _resetPasswordRequired = false;
     notifyListeners();
     try {
       await supabase.auth.signInWithPassword(email: email, password: password);
@@ -189,17 +199,52 @@ class AuthState extends ChangeNotifier {
   Future<void> signInWithGoogle() async {
     _isLoading = true;
     _authError = null;
+    _resetPasswordRequired = false;
     notifyListeners();
     try {
-      await supabase.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: Env.authRedirect,
-        authScreenLaunchMode: LaunchMode.externalApplication,
+      // 1. Native Google Sign-In for Android/iOS
+      const webClientId = 'YOUR_WEB_CLIENT_ID_FOR_GOOGLE_SIGN_IN'; // Usually optional but good to have
+      const iosClientId = 'YOUR_IOS_CLIENT_ID_FOR_GOOGLE_SIGN_IN';
+
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: iosClientId,
+        serverClientId: webClientId,
+      );
+      
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        _isLoading = false;
+        notifyListeners();
+        return; // User cancelled
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final accessToken = googleAuth.accessToken;
+      final idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw 'No ID Token found.';
+      }
+
+      await supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
       );
     } catch (e) {
       debugPrint('Google Sign-In Error: $e');
-      _authError = ErrorUtils.getFriendlyMessage(e);
-      rethrow;
+      
+      // Fallback to OAuth if native fails or for web
+      try {
+        await supabase.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: Env.authRedirect,
+          authScreenLaunchMode: LaunchMode.externalApplication,
+        );
+      } catch (inner) {
+        _authError = ErrorUtils.getFriendlyMessage(inner);
+        rethrow;
+      }
     } finally {
       _isLoading = false;
       notifyListeners();

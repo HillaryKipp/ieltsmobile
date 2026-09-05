@@ -245,29 +245,50 @@ class _UnitOverviewScreenState extends State<UnitOverviewScreen> {
                       ],
                     ),
                   )
-                : ElevatedButton(
-                    onPressed: () {
-                      context.push('/profile');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Purchase a premium membership to unlock all tests!')),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      foregroundColor: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
-                      shadowColor: Colors.transparent,
-                      side: BorderSide(color: isDark ? Colors.grey[700]! : const Color(0xFFD1D5DB)),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.lock_outline),
-                        SizedBox(width: 8),
-                        Text('Upgrade to Unlock', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
+                : auth.user != null
+                    ? ElevatedButton(
+                        onPressed: () => context.push('/upgrade'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          foregroundColor: isDark ? AppTheme.textPrimaryDark : AppTheme.textPrimaryLight,
+                          shadowColor: Colors.transparent,
+                          side: BorderSide(color: isDark ? Colors.grey[700]! : const Color(0xFFD1D5DB)),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.lock_outline),
+                            SizedBox(width: 8),
+                            Text('Upgrade to Unlock', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => context.push('/auth?mode=signin'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                side: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+                              ),
+                              child: const Text('Sign in', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => context.push('/auth?mode=signup'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: cfg.primary,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              child: const Text('Create account', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
           ],
         ),
       ),

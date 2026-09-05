@@ -20,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingData = true;
   bool _hasLoadedOnce = false;
+  String? _lastUserId;
   List<UserAttempt> _attempts = [];
   List<Map<String, dynamic>> _rawUnits = [];
   String? _errorMessage;
@@ -27,15 +28,20 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDashboardData();
+    // Initial load will happen in didChangeDependencies or here
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final auth = Provider.of<AuthState>(context);
-    if (!auth.isLoading && auth.user != null && !_hasLoadedOnce && !_isLoadingData) {
-      _loadDashboardData();
+    final currentUid = auth.user?.id;
+
+    if (!auth.isLoading) {
+      if (!_hasLoadedOnce || currentUid != _lastUserId) {
+        _lastUserId = currentUid;
+        _loadDashboardData();
+      }
     }
   }
 

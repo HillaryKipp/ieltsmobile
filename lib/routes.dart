@@ -9,6 +9,7 @@ import 'screens/unit_overview_screen.dart';
 import 'screens/practice_screen.dart';
 import 'screens/stats_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/upgrade_screen.dart';
 import 'screens/admin_screen.dart';
 import 'screens/privacy_policy_screen.dart';
 import 'theme.dart';
@@ -155,6 +156,10 @@ GoRouter createRouter(AuthState authState) {
       final onAuthPage = state.matchedLocation == '/auth';
       final onResetPage = state.matchedLocation == '/reset-password';
       final onAdminPage = state.matchedLocation.startsWith('/admin');
+      final onPrivacyPage = state.matchedLocation == '/privacy-policy';
+      
+      // Public routes that don't need auth
+      final isPublicRoute = onAuthPage || onResetPage || onPrivacyPage || state.matchedLocation == '/';
 
       if (onAdminPage && !authState.isAdmin) {
         return '/';
@@ -166,6 +171,14 @@ GoRouter createRouter(AuthState authState) {
         }
         if (onAuthPage) {
           return '/';
+        }
+      } else {
+        // If not logged in and trying to access a protected route
+        if (!isPublicRoute && !state.matchedLocation.startsWith('/skills/')) {
+           // Allow viewing skills as guest, but maybe protect practice/stats
+           if (state.matchedLocation == '/profile' || state.matchedLocation == '/stats') {
+             return '/auth';
+           }
         }
       }
 
@@ -235,7 +248,14 @@ GoRouter createRouter(AuthState authState) {
       GoRoute(
         path: '/auth',
         builder: (BuildContext context, GoRouterState state) {
-          return const AuthScreen();
+          final mode = state.uri.queryParameters['mode'];
+          return AuthScreen(initialIsSignUp: mode == 'signup');
+        },
+      ),
+      GoRoute(
+        path: '/upgrade',
+        builder: (BuildContext context, GoRouterState state) {
+          return const UpgradeScreen();
         },
       ),
       GoRoute(
