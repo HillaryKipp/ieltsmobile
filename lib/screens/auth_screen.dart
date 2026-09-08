@@ -82,14 +82,13 @@ class _AuthScreenState extends State<AuthScreen> {
           fullName: _nameController.text.trim(),
         );
         if (mounted) {
-          if (auth.user != null) {
-            context.go('/');
-          } else {
-            ErrorUtils.showSuccessSnackBar(
-              context,
-              'Verification email sent! Check your inbox to confirm your account.',
-            );
-          }
+          ErrorUtils.showSuccessSnackBar(
+            context,
+            'Verification email sent! Check your inbox to confirm your account, then sign in.',
+          );
+          setState(() {
+            _isSignUp = false;
+          });
         }
       } else {
         await auth.signIn(
@@ -102,94 +101,194 @@ class _AuthScreenState extends State<AuthScreen> {
           context.go('/');
         }
       }
-    } catch (_) {
-      // Error handled by AuthState and displayed via InlineErrorBanner
-    }
-  }
-
-  Future<void> _handleGoogleSignIn() async {
-    setState(() {
-      _errorMessage = null;
-    });
-
-    final auth = Provider.of<AuthState>(context, listen: false);
-    
-    try {
-      await auth.signInWithGoogle();
-      if (mounted && auth.user != null) {
-        debugPrint('[AUTH_UI] Google sign in complete -> navigating to /');
-        context.go('/');
+    } catch (e) {
+      if (mounted) {
+        ErrorUtils.showErrorSnackBar(
+          context,
+          e,
+          prefix: _isSignUp ? 'Sign Up Failed' : 'Sign In Failed',
+        );
       }
-    } catch (_) {
-      // Error handled by AuthState and displayed via InlineErrorBanner
     }
   }
 
   void _showForgotPasswordDialog() {
-    final emailResetController = TextEditingController(text: _emailController.text);
+    final emailResetController = TextEditingController(text: _emailController.text.trim());
     final dialogFormKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          title: const Text('Reset Password', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Form(
-            key: dialogFormKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Enter your email address and we will send you a link to reset your password.',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+      builder: (dialogContext) {
+        bool isSending = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              title: const Text('Reset Password', style: TextStyle(fontWeight: FontWeight.bold)),
+              content: Form(
+                key: dialogFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Enter your email address and we will send you a link to reset your password.',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: emailResetController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        hintText: 'email@example.com',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) return 'Email is required';
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val.trim())) {
+                          return 'Enter a valid email address';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: emailResetController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    hintText: 'email@example.com',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) return 'Email is required';
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val.trim())) {
-                      return 'Enter a valid email address';
-                    }
-                    return null;
-                  },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSending ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: isSending
+                      ? null
+                      : () async {
+                          if (!dialogFormKey.currentState!.validate()) return;
+                          final email = emailResetController.text.trim();
+                          setDialogState(() => isSending = true);
+                          try {
+                            final auth = Provider.of<AuthState>(context, listen: false);
+                            await auth.sendPasswordResetEmail(email: email);
+                            if (mounted) {
+                              Navigator.pop(dialogContext);
+                              ErrorUtils.showSuccessSnackBar(
+                                context,
+                                'Password reset link sent to $email! Please check your email.',
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() => isSending = false);
+                            if (mounted) {
+                              ErrorUtils.showErrorSnackBar(
+                                context,
+                                e,
+                                prefix: 'Failed to send reset link',
+                              );
+                            }
+                          }
+                        },
+                  child: isSending
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text('Send Link'),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (!dialogFormKey.currentState!.validate()) return;
-                final email = emailResetController.text.trim();
-                
-                try {
-                  final auth = Provider.of<AuthState>(context, listen: false);
-                  await auth.sendPasswordResetEmail(email: email);
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ErrorUtils.showSuccessSnackBar(context, 'Password reset link sent to $email!');
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ErrorUtils.showErrorSnackBar(context, e, prefix: 'Failed to send reset link');
-                  }
-                }
-              },
-              child: const Text('Send Link'),
-            ),
-          ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showResendConfirmationDialog() {
+    final emailResendController = TextEditingController(text: _emailController.text.trim());
+    final dialogFormKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        bool isSending = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              title: const Text('Resend Confirmation', style: TextStyle(fontWeight: FontWeight.bold)),
+              content: Form(
+                key: dialogFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Enter your email address to receive a new account verification link.',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: emailResendController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        hintText: 'email@example.com',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) return 'Email is required';
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val.trim())) {
+                          return 'Enter a valid email address';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSending ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: isSending
+                      ? null
+                      : () async {
+                          if (!dialogFormKey.currentState!.validate()) return;
+                          final email = emailResendController.text.trim();
+                          setDialogState(() => isSending = true);
+                          try {
+                            final auth = Provider.of<AuthState>(context, listen: false);
+                            await auth.resendConfirmationEmail(email: email);
+                            if (mounted) {
+                              Navigator.pop(dialogContext);
+                              ErrorUtils.showSuccessSnackBar(
+                                context,
+                                'Confirmation email resent to $email! Please check your inbox.',
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() => isSending = false);
+                            if (mounted) {
+                              ErrorUtils.showErrorSnackBar(
+                                context,
+                                e,
+                                prefix: 'Failed to resend confirmation',
+                              );
+                            }
+                          }
+                        },
+                  child: isSending
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text('Resend Email'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -406,6 +505,25 @@ class _AuthScreenState extends State<AuthScreen> {
                                   auth.clearAuthError();
                                 },
                               ),
+                              if ((_errorMessage ?? auth.authError ?? '').toLowerCase().contains('confirm')) ...[
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton.icon(
+                                    onPressed: _showResendConfirmationDialog,
+                                    icon: const Icon(Icons.mark_email_read_outlined, size: 16),
+                                    label: const Text(
+                                      'Resend Confirmation Email',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    ),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: AppTheme.primaryColor,
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 8),
                             ],
 
                             ElevatedButton(
@@ -421,60 +539,20 @@ class _AuthScreenState extends State<AuthScreen> {
                                     )
                                   : Text(_isSignUp ? 'Sign Up' : 'Sign In'),
                             ),
-                            
-                            const SizedBox(height: 20),
-                            
-                            // Divider
-                            Row(
-                              children: [
-                                Expanded(child: Divider(color: isDark ? Colors.white24 : Colors.grey[300])),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  child: Text(
-                                    'OR',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? Colors.grey[500] : Colors.grey[400],
-                                    ),
-                                  ),
-                                ),
-                                Expanded(child: Divider(color: isDark ? Colors.white24 : Colors.grey[300])),
-                              ],
-                            ),
-                            
-                            const SizedBox(height: 20),
-                            
-                            // Google Button
-                            OutlinedButton(
-                              onPressed: isLoading ? null : _handleGoogleSignIn,
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                side: BorderSide(
-                                  color: isDark ? Colors.white24 : Colors.grey[300]!,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: _showResendConfirmationDialog,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Image.network(
-                                    'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
-                                    height: 20,
-                                    width: 20,
-                                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, size: 24),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    _isSignUp ? 'Sign up with Google' : 'Sign in with Google',
-                                    style: TextStyle(
-                                      color: isDark ? Colors.white : Colors.grey[800],
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                'Resend confirmation email',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                  decoration: TextDecoration.underline,
+                                ),
                               ),
                             ),
                           ],

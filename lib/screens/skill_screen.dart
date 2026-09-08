@@ -110,7 +110,6 @@ class _SkillScreenState extends State<SkillScreen> {
     final cfg = AppTheme.skills[widget.skill]!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    final isUnlocked = auth.user != null && (auth.isAdmin || (auth.profile?.isPaid ?? false));
     final allUnits = _units;
 
     return Scaffold(

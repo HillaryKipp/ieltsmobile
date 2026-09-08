@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:app_links/app_links.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'config.dart';
@@ -189,10 +188,11 @@ class AuthState extends ChangeNotifier {
         emailRedirectTo: Env.authRedirect,
       );
       debugPrint('[SUPABASE/AUTH] signUp response: user=${res.user?.id}, session=${res.session != null ? "active" : "unconfirmed"}');
-      _user = res.user ?? supabase.auth.currentUser;
-      if (_user != null) {
-        await _fetchProfileAndRole();
-      }
+      // Sign out immediately so user cannot log in before confirming email
+      await supabase.auth.signOut();
+      _user = null;
+      _profile = null;
+      _isAdmin = false;
     } catch (e) {
       debugPrint('[SUPABASE/AUTH] SignUp Error: $e');
       _authError = ErrorUtils.getFriendlyMessage(e);
@@ -225,68 +225,6 @@ class AuthState extends ChangeNotifier {
     }
   }
 
-  Future<void> signInWithGoogle() async {
-    debugPrint('[SUPABASE/AUTH] signInWithGoogle requested');
-    _isLoading = true;
-    _authError = null;
-    _resetPasswordRequired = false;
-    notifyListeners();
-    try {
-      // 1. Native Google Sign-In for Android/iOS
-      const webClientId = 'YOUR_WEB_CLIENT_ID_FOR_GOOGLE_SIGN_IN';
-      const iosClientId = 'YOUR_IOS_CLIENT_ID_FOR_GOOGLE_SIGN_IN';
-
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId: iosClientId,
-        serverClientId: webClientId,
-      );
-      
-      final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) {
-        debugPrint('[SUPABASE/AUTH] Google sign in was cancelled by user');
-        _isLoading = false;
-        notifyListeners();
-        return;
-      }
-
-      final googleAuth = await googleUser.authentication;
-      final accessToken = googleAuth.accessToken;
-      final idToken = googleAuth.idToken;
-
-      if (idToken == null) {
-        throw 'No ID Token found.';
-      }
-
-      debugPrint('[SUPABASE/AUTH] Google ID token obtained, signing in with Supabase');
-      final res = await supabase.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: idToken,
-        accessToken: accessToken,
-      );
-      debugPrint('[SUPABASE/AUTH] Google sign-in success: userId=${res.user?.id}');
-      _user = res.user;
-      await _fetchProfileAndRole();
-    } catch (e) {
-      debugPrint('[SUPABASE/AUTH] Google Sign-In Native Error: $e -> Trying OAuth fallback');
-      
-      // Fallback to OAuth if native fails or for web
-      try {
-        await supabase.auth.signInWithOAuth(
-          OAuthProvider.google,
-          redirectTo: Env.authRedirect,
-          authScreenLaunchMode: LaunchMode.externalApplication,
-        );
-      } catch (inner) {
-        debugPrint('[SUPABASE/AUTH] Google OAuth Fallback Error: $inner');
-        _authError = ErrorUtils.getFriendlyMessage(inner);
-        rethrow;
-      }
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
   Future<void> sendPasswordResetEmail({required String email}) async {
     debugPrint('[SUPABASE/AUTH] sendPasswordResetEmail requested: email=$email');
     _authError = null;
@@ -296,6 +234,24 @@ class AuthState extends ChangeNotifier {
       debugPrint('[SUPABASE/AUTH] Password reset email dispatched');
     } catch (e) {
       debugPrint('[SUPABASE/AUTH] Reset Password Email Error: $e');
+      _authError = ErrorUtils.getFriendlyMessage(e);
+      rethrow;
+    }
+  }
+
+  Future<void> resendConfirmationEmail({required String email}) async {
+    debugPrint('[SUPABASE/AUTH] resendConfirmationEmail requested: email=$email');
+    _authError = null;
+    notifyListeners();
+    try {
+      await supabase.auth.resend(
+        type: OtpType.signup,
+        email: email,
+        emailRedirectTo: Env.authRedirect,
+      );
+      debugPrint('[SUPABASE/AUTH] Confirmation email resent to $email');
+    } catch (e) {
+      debugPrint('[SUPABASE/AUTH] Resend Confirmation Email Error: $e');
       _authError = ErrorUtils.getFriendlyMessage(e);
       rethrow;
     }

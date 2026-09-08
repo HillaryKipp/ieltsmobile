@@ -20,8 +20,10 @@ class ErrorUtils {
           msg.contains('already registered')) {
         return 'An account with this email already exists.';
       }
-      if (msg.contains('email not confirmed') || msg.contains('not_confirmed')) {
-        return 'Please confirm your email address before signing in.';
+      if (msg.contains('email not confirmed') || 
+          msg.contains('not_confirmed') || 
+          msg.contains('email_not_confirmed')) {
+        return 'Please confirm your email address before signing in. Check your inbox for the confirmation link or use "Resend confirmation email".';
       }
       if (msg.contains('password should be at least')) {
         return 'Password must be at least 6 characters.';
@@ -29,11 +31,14 @@ class ErrorUtils {
       if (msg.contains('flow state not found') || 
           msg.contains('pkce') || 
           msg.contains('expired') ||
-          msg.contains('invalid_grant')) {
+          msg.contains('invalid_grant') ||
+          msg.contains('otp_expired')) {
         return 'Your verification link has expired or has already been used. Please request a new one.';
       }
-      if (msg.contains('rate limit')) {
-        return 'Too many attempts. Please try again later.';
+      if (msg.contains('rate limit') || 
+          msg.contains('over_email_send_rate_limit') || 
+          msg.contains('too many requests')) {
+        return 'Too many email requests sent. For security, please wait at least 60 seconds before trying again.';
       }
       return error.message;
     }

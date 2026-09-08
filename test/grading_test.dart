@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/models.dart';
-import '../lib/grading.dart';
+import 'package:ielts_prep/models.dart';
+import 'package:ielts_prep/grading.dart';
 
 void main() {
   group('IELTS Grading Tests', () {
